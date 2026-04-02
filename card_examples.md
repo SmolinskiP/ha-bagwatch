@@ -50,96 +50,15 @@ styles:
 
 Repeat the same pattern for `sensor.stock_current_value` with a different gradient.
 
-## Example 2: Capital Split Donut
-
-Suggested screenshot name: `dashboard-capital-split.png`
-
-Use this for:
-
-- one clean chart showing crypto vs stocks
-- a compact allocation visual that fits well in `sections`
-
-Cards:
-
-- `sensor.crypto_current_value`
-- `sensor.stock_current_value`
-
-```yaml
-type: custom:apexcharts-card
-chart_type: donut
-header:
-  show: true
-  title: Capital Split
-  show_states: true
-  colorize_states: true
-apex_config:
-  legend:
-    show: true
-    position: bottom
-  dataLabels:
-    enabled: false
-  plotOptions:
-    pie:
-      donut:
-        size: 58%
-series:
-  - entity: sensor.crypto_current_value
-    name: Crypto
-    color: '#22c55e'
-  - entity: sensor.stock_current_value
-    name: Stocks
-    color: '#a855f7'
-```
-
-## Example 3: Crypto Allocation Donut
-
-Suggested screenshot name: `dashboard-crypto-allocation.png`
-
-Use this for:
-
-- BTC vs KAS allocation
-- compact crypto composition visual
-
-Cards:
-
-- `sensor.bitcoin_current_value`
-- `sensor.kaspa_current_value`
-
-```yaml
-type: custom:apexcharts-card
-chart_type: donut
-header:
-  show: true
-  title: Crypto Allocation
-  show_states: true
-  colorize_states: true
-apex_config:
-  legend:
-    show: true
-    position: bottom
-  dataLabels:
-    enabled: false
-  plotOptions:
-    pie:
-      donut:
-        size: 60%
-series:
-  - entity: sensor.bitcoin_current_value
-    name: Bitcoin
-    color: '#f59e0b'
-  - entity: sensor.kaspa_current_value
-    name: Kaspa
-    color: '#06b6d4'
-```
-
-## Example 4: Stock Allocation Donut
+## Example 2: Allocation Donut
 
 Suggested screenshot name: `dashboard-stock-allocation.png`
 
 Use this for:
 
-- four-position stock split
-- clean portfolio composition visual for equity holdings
+- one clean allocation chart
+- compact portfolio composition visual
+- the same pattern also works for crypto
 
 Cards:
 
@@ -181,7 +100,7 @@ series:
     color: '#eab308'
 ```
 
-## Example 5: Portfolio Value Chart
+## Example 3: Portfolio Value Chart
 
 Suggested screenshot name: `dashboard-portfolio-value-chart.png`
 
@@ -221,13 +140,11 @@ series:
     color: '#a855f7'
 ```
 
-## Example 6: Price Tape Mini Graphs
+## Example 4: Price Tape Mini Graph
 
 Suggested screenshot names:
 
 - `dashboard-bitcoin-price-tape.png`
-- `dashboard-kaspa-price-tape.png`
-- `dashboard-microslop-price-tape.png`
 
 Use this for:
 
@@ -237,8 +154,6 @@ Use this for:
 Cards:
 
 - `sensor.bitcoin_current_price`
-- `sensor.kaspa_current_price`
-- `sensor.microslop_current_price`
 
 ```yaml
 type: custom:mini-graph-card
@@ -262,9 +177,9 @@ color_thresholds:
     color: '#f59e0b'
 ```
 
-Repeat for `Kaspa` and `Microslop` with their own entities and colors.
+Repeat the same pattern for `Kaspa`, `Microslop`, or `Orlen` with different entities and colors.
 
-## Example 7: BTC Price vs Volume
+## Example 5: BTC Price vs Volume
 
 Suggested screenshot name: `dashboard-btc-price-volume.png`
 
@@ -307,7 +222,7 @@ series:
     opacity: 0.35
 ```
 
-## Example 8: Delete Position Controls
+## Example 6: Delete Position Controls
 
 Suggested screenshot name: `dashboard-delete-controls.png`
 
@@ -341,11 +256,10 @@ cards:
 If you want a compact set of showcase images for the repository, take these first:
 
 1. `dashboard-hero-overview.png`
-2. `dashboard-capital-split.png`
-3. `dashboard-crypto-allocation.png`
-4. `dashboard-stock-allocation.png`
-5. `dashboard-portfolio-value-chart.png`
-6. `dashboard-btc-price-volume.png`
+2. `dashboard-stock-allocation.png`
+3. `dashboard-portfolio-value-chart.png`
+4. `dashboard-bitcoin-price-tape.png`
+5. `dashboard-btc-price-volume.png`
 
 That set is enough to show:
 
