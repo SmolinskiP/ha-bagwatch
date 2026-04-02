@@ -8,6 +8,17 @@ If you already live inside Home Assistant, Bagwatch lets your portfolio live the
 
 <!-- Suggested screenshot: hero dashboard with portfolio summary and a few asset cards -->
 
+## Key Features
+
+- **Transaction-based tracking** - Add buys and sells instead of manually recalculating positions
+- **Portfolio-level statistics** - Current value, open cost basis, realized and unrealized P/L
+- **Per-asset entities** - Track each asset separately inside Home Assistant
+- **Stocks, ETFs, and crypto** - One integration for the assets most people actually care about
+- **Dashboard-ready sensors** - Built to work nicely with cards, charts, statistics, and automations
+- **Delete Position action** - Remove a tracked asset cleanly from the device view
+- **Base currency support** - Keep portfolio stats in the currency you actually want to see
+- **Home Assistant-native setup** - Config flow, entities, devices, and HACS-friendly structure
+
 ## Why Bagwatch
 
 Most portfolio tools are built as separate apps.
@@ -164,6 +175,15 @@ It is meant to give you solid raw entities first, so your dashboard can look exa
 - A tracked asset can be removed using the `Delete Position` action on the asset device.
 - The current accounting model is intentionally simple and useful: transaction-based, without turning the integration into accounting software.
 
-## Support the project
+## Star History
 
-If Bagwatch is useful to you and you want to support future work, GitHub funding links are enabled for the repository.
+[![Star History Chart](https://api.star-history.com/svg?repos=SmolinskiP/ha-bagwatch&type=Date)](https://star-history.com/#SmolinskiP/ha-bagwatch&Date)
+
+## 📄 License
+
+MIT License. Do whatever you want, just don't blame me when something doesn't work.
+
+## ☕ Support
+
+If the app helped you and you want to buy me a coffee:
+[☕ Buy me a coffee](https://buymeacoffee.com/smolinskip)
