@@ -14,11 +14,14 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import (
     CONF_BASE_CURRENCY,
+    CONF_CRYPTO_PRICE_PROVIDER,
     CONF_PORTFOLIO,
     CONF_PORTFOLIO_NAME,
     CONF_PROVIDER,
     CONF_SCAN_INTERVAL,
+    CRYPTO_PROVIDER_COINGECKO_THEN_TWELVE,
     DEFAULT_BASE_CURRENCY,
+    DEFAULT_CRYPTO_PRICE_PROVIDER,
     DEFAULT_PORTFOLIO_NAME,
     DEFAULT_PROVIDER,
     DEFAULT_SCAN_INTERVAL,
@@ -38,7 +41,7 @@ from .models import (
     parse_holdings_text,
     parse_transactions_data,
 )
-from .provider import MarketDataError, TwelveDataClient
+from .provider import CoinGeckoClient, MarketDataError, TwelveDataClient
 
 _LOGGER = logging.getLogger(__name__)
 LEGACY_SUBENTRY_TYPE_POSITION = "position"
@@ -55,6 +58,12 @@ def _subentry_sort_key(subentry: Any) -> tuple[str, str]:
     return ("", getattr(subentry, "subentry_id", ""))
 
 
+def _is_rate_limit_error(err: MarketDataError) -> bool:
+    """Return True when Twelve Data rejected the call due to rate limiting."""
+    message = str(err).lower()
+    return "api credits" in message or "current minute" in message or "rate limit" in message
+
+
 class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
     """Coordinate market data updates and portfolio calculations."""
 
@@ -64,15 +73,20 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
         self,
         hass: HomeAssistant,
         entry: ConfigEntry,
-        client: TwelveDataClient,
+        twelve_data_client: TwelveDataClient,
+        coingecko_client: CoinGeckoClient,
     ) -> None:
         """Initialize the coordinator."""
         self.config_entry = entry
-        self._client = client
+        self._twelve_data_client = twelve_data_client
+        self._coingecko_client = coingecko_client
         self._portfolio_name = str(
             self._entry_value(CONF_PORTFOLIO_NAME, DEFAULT_PORTFOLIO_NAME)
         ).strip()
         self._provider = str(self._entry_value(CONF_PROVIDER, DEFAULT_PROVIDER)).strip()
+        self._crypto_price_provider = str(
+            self._entry_value(CONF_CRYPTO_PRICE_PROVIDER, DEFAULT_CRYPTO_PRICE_PROVIDER)
+        ).strip()
         self._base_currency = str(
             self._entry_value(CONF_BASE_CURRENCY, DEFAULT_BASE_CURRENCY)
         ).strip().upper()
@@ -201,27 +215,78 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
                 )
 
             return self._build_empty_snapshot()
-        except (PortfolioValidationError, MarketDataError) as err:
+        except PortfolioValidationError as err:
+            raise UpdateFailed(str(err)) from err
+        except MarketDataError as err:
+            if _is_rate_limit_error(err) and self.data is not None:
+                _LOGGER.warning(
+                    "Market data rate limit hit; keeping the last successful Bagwatch snapshot: %s",
+                    err,
+                )
+                return self.data
             raise UpdateFailed(str(err)) from err
 
     async def _async_fetch_quotes_for_assets(
         self,
         assets: list[AssetConfig],
     ) -> dict[str, MarketQuote]:
-        """Fetch quotes for aggregated transaction assets."""
-        tasks = [self._client.async_get_quote(asset.to_provider_query()) for asset in assets]
-        results = await asyncio.gather(*tasks)
-        return {
-            asset.key: quote
-            for asset, quote in zip(assets, results, strict=True)
-        }
+        """Fetch quotes with multi-provider routing and fallback."""
+        quotes: dict[str, MarketQuote] = {}
+        twelve_assets: list[AssetConfig] = [
+            asset for asset in assets if asset.asset_type != "crypto"
+        ]
+        crypto_assets: list[AssetConfig] = [
+            asset for asset in assets if asset.asset_type == "crypto"
+        ]
+
+        if crypto_assets and self._crypto_price_provider == CRYPTO_PROVIDER_COINGECKO_THEN_TWELVE:
+            try:
+                coingecko_quotes, unresolved_assets = await self._coingecko_client.async_get_crypto_quotes(
+                    crypto_assets,
+                    quote_currency="usd",
+                )
+                quotes.update(coingecko_quotes)
+                twelve_assets.extend(unresolved_assets)
+                if unresolved_assets:
+                    _LOGGER.info(
+                        "CoinGecko could not resolve %s crypto asset(s); falling back to Twelve Data",
+                        len(unresolved_assets),
+                    )
+            except MarketDataError as err:
+                _LOGGER.warning(
+                    "CoinGecko crypto fetch failed, falling back to Twelve Data: %s",
+                    err,
+                )
+                twelve_assets.extend(crypto_assets)
+        else:
+            twelve_assets.extend(crypto_assets)
+
+        if twelve_assets:
+            tasks = [
+                self._twelve_data_client.async_get_quote(asset.to_provider_query())
+                for asset in twelve_assets
+            ]
+            results = await asyncio.gather(*tasks)
+            quotes.update(
+                {
+                    asset.key: quote
+                    for asset, quote in zip(twelve_assets, results, strict=True)
+                }
+            )
+
+        return quotes
 
     async def _async_fetch_quotes_for_holdings(
         self,
         holdings: list[HoldingConfig],
     ) -> dict[str, MarketQuote]:
         """Fetch quotes for legacy holdings."""
-        tasks = [self._client.async_get_quote(holding.to_asset_config().to_provider_query()) for holding in holdings]
+        tasks = [
+            self._twelve_data_client.async_get_quote(
+                holding.to_asset_config().to_provider_query()
+            )
+            for holding in holdings
+        ]
         results = await asyncio.gather(*tasks)
         return {
             holding.key: quote
@@ -248,8 +313,11 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
                 if transaction.currency != self._base_currency:
                     pairs_to_fetch.add((transaction.currency, self._base_currency))
 
+        if not pairs_to_fetch:
+            return fx_rates
+
         tasks = [
-            self._client.async_get_exchange_rate(source, target)
+            self._twelve_data_client.async_get_exchange_rate(source, target)
             for source, target in pairs_to_fetch
         ]
         results = await asyncio.gather(*tasks)
@@ -281,8 +349,11 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
             if cost_currency != self._base_currency:
                 pairs_to_fetch.add((cost_currency, self._base_currency))
 
+        if not pairs_to_fetch:
+            return fx_rates
+
         tasks = [
-            self._client.async_get_exchange_rate(source, target)
+            self._twelve_data_client.async_get_exchange_rate(source, target)
             for source, target in pairs_to_fetch
         ]
         results = await asyncio.gather(*tasks)

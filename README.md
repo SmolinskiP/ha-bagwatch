@@ -17,6 +17,7 @@ If you already live inside Home Assistant, Bagwatch lets your portfolio live the
 - **Dashboard-ready sensors** - Built to work nicely with cards, charts, statistics, and automations
 - **Delete Position action** - Remove a tracked asset cleanly from the device view
 - **Base currency support** - Keep portfolio stats in the currency you actually want to see
+- **Multi-provider crypto support** - Use CoinGecko for crypto with fallback to Twelve Data
 - **Home Assistant-native setup** - Config flow, entities, devices, and HACS-friendly structure
 
 ## Why Bagwatch
@@ -79,12 +80,14 @@ Before you start, you need:
 - a working Home Assistant instance
 - access to HACS or your Home Assistant `config` directory
 - a Twelve Data API key
+- optionally, a CoinGecko API key for better crypto handling
 
-Bagwatch currently uses Twelve Data for market prices, so the API key is required during setup.
+Bagwatch uses Twelve Data for stocks, ETFs, and FX. For crypto, it can use CoinGecko first and fall back to Twelve Data if needed.
 
-Get your key here:
+Get your keys here:
 
 - https://twelvedata.com/
+- https://www.coingecko.com/en/api
 
 ## Installation
 
@@ -124,10 +127,12 @@ config/
 
 1. Add the `Bagwatch` integration from `Settings > Devices & services`.
 2. Enter your Twelve Data API key.
-3. Choose the base currency for the portfolio.
-4. Set the refresh interval.
-5. Finish the integration setup.
-6. Open the integration and add transactions one by one.
+3. Choose the crypto price strategy.
+4. Optionally enter your CoinGecko API key.
+5. Choose the base currency for the portfolio.
+6. Set the refresh interval.
+7. Finish the integration setup.
+8. Open the integration and add transactions one by one.
 
 Each transaction includes:
 
@@ -140,6 +145,9 @@ Each transaction includes:
 - trade date
 - optional fees
 - optional display name
+- optional provider symbol
+
+For crypto, you can also provide a CoinGecko coin id as `provider_symbol`, using prefixes like `cg:bitcoin`.
 
 Once transactions are added, Bagwatch builds the current portfolio state automatically.
 

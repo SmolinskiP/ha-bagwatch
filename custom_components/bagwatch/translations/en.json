@@ -4,11 +4,13 @@
     "step": {
       "user": {
         "title": "Configure Bagwatch",
-        "description": "Set up the market data provider. You will add transactions after the integration is created.",
+        "description": "Set up the market data providers. Bagwatch uses Twelve Data for stocks, ETFs and FX, and can use CoinGecko for crypto with fallback to Twelve Data.",
         "data": {
           "portfolio_name": "Portfolio name",
-          "provider": "Data provider",
-          "api_key": "API key",
+          "provider": "Primary market data provider",
+          "api_key": "Twelve Data API key",
+          "crypto_price_provider": "Crypto price strategy",
+          "coingecko_api_key": "CoinGecko API key (optional)",
           "base_currency": "Base currency",
           "scan_interval": "Refresh interval (seconds)"
         }
@@ -18,8 +20,10 @@
         "description": "Update provider settings for this portfolio.",
         "data": {
           "portfolio_name": "Portfolio name",
-          "provider": "Data provider",
-          "api_key": "API key",
+          "provider": "Primary market data provider",
+          "api_key": "Twelve Data API key",
+          "crypto_price_provider": "Crypto price strategy",
+          "coingecko_api_key": "CoinGecko API key (optional)",
           "base_currency": "Base currency",
           "scan_interval": "Refresh interval (seconds)"
         }
@@ -72,7 +76,7 @@
             "currency": "Currency of the executed trade, for example USD or PLN.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
-            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough."
+            "provider_symbol": "Optional exact provider ticker. For CoinGecko crypto ids you can use prefixes like cg:bitcoin."
           }
         },
         "init": {
@@ -100,7 +104,7 @@
             "currency": "Currency of the executed trade, for example USD or PLN.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
-            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough."
+            "provider_symbol": "Optional exact provider ticker. For CoinGecko crypto ids you can use prefixes like cg:bitcoin."
           }
         },
         "reconfigure": {
@@ -128,7 +132,7 @@
             "currency": "Currency of the executed trade, for example USD or PLN.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
-            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough."
+            "provider_symbol": "Optional exact provider ticker. For CoinGecko crypto ids you can use prefixes like cg:bitcoin."
           }
         }
       }
@@ -141,8 +145,10 @@
         "description": "Update provider settings. Transactions are managed separately from the integration page.",
         "data": {
           "portfolio_name": "Portfolio name",
-          "provider": "Data provider",
-          "api_key": "API key",
+          "provider": "Primary market data provider",
+          "api_key": "Twelve Data API key",
+          "crypto_price_provider": "Crypto price strategy",
+          "coingecko_api_key": "CoinGecko API key (optional)",
           "base_currency": "Base currency",
           "scan_interval": "Refresh interval (seconds)"
         }

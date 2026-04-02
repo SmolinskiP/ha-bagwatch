@@ -32,6 +32,8 @@ from .const import (
     CONF_API_KEY,
     CONF_ASSET_TYPE,
     CONF_BASE_CURRENCY,
+    CONF_COINGECKO_API_KEY,
+    CONF_CRYPTO_PRICE_PROVIDER,
     CONF_CURRENCY,
     CONF_FEES_TOTAL,
     CONF_NAME,
@@ -46,12 +48,14 @@ from .const import (
     CONF_UNIT_PRICE,
     DEFAULT_ASSET_TYPE,
     DEFAULT_BASE_CURRENCY,
+    DEFAULT_CRYPTO_PRICE_PROVIDER,
     DEFAULT_PORTFOLIO_NAME,
     DEFAULT_PROVIDER,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TRANSACTION_TYPE,
     DOMAIN,
     SUPPORTED_ASSET_TYPES,
+    SUPPORTED_CRYPTO_PRICE_PROVIDERS,
     SUPPORTED_PROVIDERS,
     SUPPORTED_TRANSACTION_TYPES,
 )
@@ -95,6 +99,22 @@ def _basic_schema(defaults: dict[str, Any]) -> vol.Schema:
         vol.Required(
             CONF_API_KEY,
             default=defaults.get(CONF_API_KEY, ""),
+        ): str,
+        vol.Required(
+            CONF_CRYPTO_PRICE_PROVIDER,
+            default=defaults.get(
+                CONF_CRYPTO_PRICE_PROVIDER,
+                DEFAULT_CRYPTO_PRICE_PROVIDER,
+            ),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=SUPPORTED_CRYPTO_PRICE_PROVIDERS,
+                mode=SelectSelectorMode.DROPDOWN,
+            )
+        ),
+        vol.Optional(
+            CONF_COINGECKO_API_KEY,
+            default=defaults.get(CONF_COINGECKO_API_KEY, ""),
         ): str,
         vol.Required(
             CONF_BASE_CURRENCY,
@@ -199,6 +219,14 @@ def _normalize_basic_input(user_input: dict[str, Any]) -> dict[str, Any]:
     if provider not in SUPPORTED_PROVIDERS:
         raise PortfolioValidationError(f"Unsupported provider: {provider}")
 
+    crypto_price_provider = str(
+        user_input[CONF_CRYPTO_PRICE_PROVIDER]
+    ).strip()
+    if crypto_price_provider not in SUPPORTED_CRYPTO_PRICE_PROVIDERS:
+        raise PortfolioValidationError(
+            f"Unsupported crypto provider strategy: {crypto_price_provider}"
+        )
+
     portfolio_name = str(user_input[CONF_PORTFOLIO_NAME]).strip()
     if not portfolio_name:
         raise PortfolioValidationError("Portfolio name is required")
@@ -207,6 +235,10 @@ def _normalize_basic_input(user_input: dict[str, Any]) -> dict[str, Any]:
         CONF_PORTFOLIO_NAME: portfolio_name,
         CONF_PROVIDER: provider,
         CONF_API_KEY: api_key,
+        CONF_CRYPTO_PRICE_PROVIDER: crypto_price_provider,
+        CONF_COINGECKO_API_KEY: str(
+            user_input.get(CONF_COINGECKO_API_KEY, "")
+        ).strip(),
         CONF_BASE_CURRENCY: str(user_input[CONF_BASE_CURRENCY]).strip().upper(),
         CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
     }
