@@ -1,0 +1,44 @@
+{
+  "title": "Bagwatch",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure portfolio",
+        "description": "Provide your market data API key and portfolio JSON.",
+        "data": {
+          "portfolio_name": "Portfolio name",
+          "provider": "Data provider",
+          "api_key": "API key",
+          "base_currency": "Base currency",
+          "scan_interval": "Refresh interval (seconds)",
+          "portfolio": "Portfolio JSON"
+        }
+      }
+    },
+    "error": {
+      "invalid_configuration": "The configuration is invalid. Check the API key and portfolio JSON."
+    },
+    "abort": {
+      "already_configured": "This portfolio is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Portfolio options",
+        "data": {
+          "portfolio_name": "Portfolio name",
+          "provider": "Data provider",
+          "api_key": "API key",
+          "base_currency": "Base currency",
+          "scan_interval": "Refresh interval (seconds)",
+          "portfolio": "Portfolio JSON"
+        }
+      }
+    },
+    "error": {
+      "invalid_configuration": "The configuration is invalid. Check the API key and portfolio JSON."
+    }
+  }
+}
+
