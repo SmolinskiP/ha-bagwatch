@@ -17,7 +17,7 @@ Entity naming used below follows the integration pattern:
 
 ## Example 1: Portfolio Hero Cards
 
-Suggested screenshot name: `dashboard-hero-overview.png`
+<img width="456" height="317" alt="image" src="https://github.com/user-attachments/assets/2dea79bc-2ce6-4edc-8e4b-6d7da5ce342a" />
 
 Use this for:
 
@@ -52,7 +52,7 @@ Repeat the same pattern for `sensor.stock_current_value` with a different gradie
 
 ## Example 2: Allocation Donut
 
-Suggested screenshot name: `dashboard-stock-allocation.png`
+<img width="454" height="475" alt="image" src="https://github.com/user-attachments/assets/64dd07f3-9a03-4432-8218-5ce235f54f01" />
 
 Use this for:
 
@@ -102,7 +102,7 @@ series:
 
 ## Example 3: Portfolio Value Chart
 
-Suggested screenshot name: `dashboard-portfolio-value-chart.png`
+<img width="457" height="398" alt="image" src="https://github.com/user-attachments/assets/dd435055-bb70-4568-9718-e36f69ff7cf2" />
 
 Use this for:
 
@@ -142,9 +142,7 @@ series:
 
 ## Example 4: Price Tape Mini Graph
 
-Suggested screenshot names:
-
-- `dashboard-bitcoin-price-tape.png`
+<img width="457" height="214" alt="image" src="https://github.com/user-attachments/assets/4ac4d8b4-a3ba-46b4-94e4-ba1c25068e1e" />
 
 Use this for:
 
@@ -181,7 +179,7 @@ Repeat the same pattern for `Kaspa`, `Microslop`, or `Orlen` with different enti
 
 ## Example 5: BTC Price vs Volume
 
-Suggested screenshot name: `dashboard-btc-price-volume.png`
+<img width="464" height="431" alt="image" src="https://github.com/user-attachments/assets/7430ec01-4698-472b-a1c5-f68b8122ac2f" />
 
 Use this for:
 
@@ -221,50 +219,3 @@ series:
     type: column
     opacity: 0.35
 ```
-
-## Example 6: Delete Position Controls
-
-Suggested screenshot name: `dashboard-delete-controls.png`
-
-Use this for:
-
-- device/action controls
-- a screenshot showing position management inside the dashboard
-
-Cards:
-
-- `button.bitcoin_delete_position`
-- `button.kaspa_delete_position`
-- `button.coca_cola_delete_position`
-- `button.microslop_delete_position`
-
-```yaml
-type: horizontal-stack
-cards:
-  - type: tile
-    entity: button.bitcoin_delete_position
-    name: Delete BTC
-    color: red
-  - type: tile
-    entity: button.kaspa_delete_position
-    name: Delete KAS
-    color: red
-```
-
-## Screenshot Plan
-
-If you want a compact set of showcase images for the repository, take these first:
-
-1. `dashboard-hero-overview.png`
-2. `dashboard-stock-allocation.png`
-3. `dashboard-portfolio-value-chart.png`
-4. `dashboard-bitcoin-price-tape.png`
-5. `dashboard-btc-price-volume.png`
-
-That set is enough to show:
-
-- portfolio overview
-- allocation
-- trend tracking
-- per-asset spotlight
-- management actions
