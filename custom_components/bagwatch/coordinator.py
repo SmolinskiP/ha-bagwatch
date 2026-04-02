@@ -6,6 +6,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -42,6 +43,16 @@ from .provider import MarketDataError, TwelveDataClient
 _LOGGER = logging.getLogger(__name__)
 LEGACY_SUBENTRY_TYPE_POSITION = "position"
 SUBENTRY_TYPE_TRANSACTION = "transaction"
+
+
+def _subentry_sort_key(subentry: Any) -> tuple[str, str]:
+    """Return a version-safe sorting key for config subentries."""
+    created_at = getattr(subentry, "created_at", None)
+    modified_at = getattr(subentry, "modified_at", None)
+    timestamp = created_at or modified_at
+    if isinstance(timestamp, datetime):
+        return (timestamp.isoformat(), getattr(subentry, "subentry_id", ""))
+    return ("", getattr(subentry, "subentry_id", ""))
 
 
 class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
@@ -90,7 +101,7 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
                 for subentry in self.config_entry.subentries.values()
                 if subentry.subentry_type == SUBENTRY_TYPE_TRANSACTION
             ),
-            key=lambda subentry: (subentry.created_at, subentry.subentry_id),
+            key=_subentry_sort_key,
         )
         return [
             dict(subentry.data) | {"_order_index": index}

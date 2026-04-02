@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -63,6 +64,16 @@ from .models import (
 
 SUBENTRY_TYPE_TRANSACTION = "transaction"
 LEGACY_SUBENTRY_TYPE_POSITION = "position"
+
+
+def _subentry_sort_key(subentry: Any) -> tuple[str, str]:
+    """Return a version-safe sorting key for config subentries."""
+    created_at = getattr(subentry, "created_at", None)
+    modified_at = getattr(subentry, "modified_at", None)
+    timestamp = created_at or modified_at
+    if isinstance(timestamp, datetime):
+        return (timestamp.isoformat(), getattr(subentry, "subentry_id", ""))
+    return ("", getattr(subentry, "subentry_id", ""))
 
 
 def _basic_schema(defaults: dict[str, Any]) -> vol.Schema:
@@ -400,7 +411,7 @@ class BagwatchTransactionSubentryFlow(ConfigSubentryFlow):
 
         sorted_subentries = sorted(
             entry.subentries.values(),
-            key=lambda subentry: (subentry.created_at, subentry.subentry_id),
+            key=_subentry_sort_key,
         )
         for subentry in sorted_subentries:
             if subentry.subentry_type != SUBENTRY_TYPE_TRANSACTION:
