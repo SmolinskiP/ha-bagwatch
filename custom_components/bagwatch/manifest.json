@@ -3,12 +3,13 @@
   "name": "Bagwatch",
   "codeowners": [],
   "config_flow": true,
-  "documentation": "https://github.com/<your-github-user>/<your-repo>",
-  "issue_tracker": "https://github.com/<your-github-user>/<your-repo>/issues",
+  "documentation": "https://github.com/SmolinskiP/ha-bagwatch",
+  "issue_tracker": "https://github.com/SmolinskiP/ha-bagwatch/issues",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "loggers": ["custom_components.bagwatch"],
   "requirements": [],
   "version": "0.1.0"
 }
+
 
