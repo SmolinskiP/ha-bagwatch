@@ -263,6 +263,37 @@ class PortfolioSnapshot:
     unrealized_gain_pct: Decimal | None
 
 
+def parse_holdings_data(raw_holdings: list[dict[str, Any]]) -> list[HoldingConfig]:
+    """Parse and validate holdings from Python data."""
+    if not isinstance(raw_holdings, list) or not raw_holdings:
+        raise PortfolioValidationError(
+            "Portfolio must contain at least one position"
+        )
+
+    holdings: list[HoldingConfig] = []
+    seen_symbols: set[str] = set()
+    for raw_holding in raw_holdings:
+        if not isinstance(raw_holding, dict):
+            raise PortfolioValidationError("Each holding must be an object")
+
+        holding = HoldingConfig.from_dict(raw_holding)
+        symbol_key = holding.key
+        if symbol_key in seen_symbols:
+            raise PortfolioValidationError(
+                f"Duplicate symbol '{holding.symbol}'. Merge lots into a single aggregated position."
+            )
+        seen_symbols.add(symbol_key)
+        holdings.append(holding)
+
+    return holdings
+
+
+def serialize_holdings(raw_holdings: list[dict[str, Any]]) -> str:
+    """Serialize holdings into the stored JSON format."""
+    parse_holdings_data(raw_holdings)
+    return json.dumps(raw_holdings)
+
+
 def parse_holdings_text(text: str) -> list[HoldingConfig]:
     """Parse and validate holdings JSON."""
     if not text or not text.strip():
@@ -278,28 +309,7 @@ def parse_holdings_text(text: str) -> list[HoldingConfig]:
     else:
         raw_holdings = payload
 
-    if not isinstance(raw_holdings, list) or not raw_holdings:
-        raise PortfolioValidationError(
-            "Portfolio JSON must be a non-empty array or an object with a 'holdings' array"
-        )
-
-    holdings: list[HoldingConfig] = []
-    seen_symbols: set[str] = set()
-    for raw_holding in raw_holdings:
-        if not isinstance(raw_holding, dict):
-            raise PortfolioValidationError("Each holding must be a JSON object")
-
-        holding = HoldingConfig.from_dict(raw_holding)
-        symbol_key = holding.key
-        if symbol_key in seen_symbols:
-            raise PortfolioValidationError(
-                f"Duplicate symbol '{holding.symbol}'. Merge lots into a single aggregated position."
-            )
-        seen_symbols.add(symbol_key)
-        holdings.append(holding)
-
-    return holdings
-
+    return parse_holdings_data(raw_holdings)
 
 def _get_fx_rate(
     source_currency: str,
@@ -404,3 +414,4 @@ def build_portfolio_snapshot(
         unrealized_gain_base=unrealized_gain_total,
         unrealized_gain_pct=unrealized_gain_pct_total,
     )
+

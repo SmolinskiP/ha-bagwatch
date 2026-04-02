@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 import logging
 
@@ -28,6 +28,7 @@ from .models import (
     PortfolioSnapshot,
     PortfolioValidationError,
     build_portfolio_snapshot,
+    parse_holdings_data,
     parse_holdings_text,
 )
 from .provider import MarketDataError, TwelveDataClient
@@ -56,7 +57,6 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
         self._base_currency = str(
             self._entry_value(CONF_BASE_CURRENCY, DEFAULT_BASE_CURRENCY)
         ).strip().upper()
-        self._portfolio_text = str(self._entry_value(CONF_PORTFOLIO, "")).strip()
         self._scan_interval = max(
             60,
             int(self._entry_value(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)),
@@ -74,13 +74,42 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
         """Read a config value from options or data."""
         return self.config_entry.options.get(key, self.config_entry.data.get(key, default))
 
+    def _load_holdings(self) -> list[HoldingConfig]:
+        """Load holdings from subentries or legacy stored JSON."""
+        if self.config_entry.subentries:
+            return parse_holdings_data(
+                [dict(subentry.data) for subentry in self.config_entry.subentries.values()]
+            )
+
+        legacy_portfolio = str(self.config_entry.data.get(CONF_PORTFOLIO, "")).strip()
+        if legacy_portfolio:
+            return parse_holdings_text(legacy_portfolio)
+
+        return []
+
+    def _build_empty_snapshot(self) -> PortfolioSnapshot:
+        """Build an empty portfolio snapshot when no positions exist yet."""
+        return PortfolioSnapshot(
+            name=self._portfolio_name,
+            base_currency=self._base_currency,
+            updated_at=datetime.now(UTC),
+            positions=[],
+            market_value_base=Decimal("0"),
+            cost_basis_base=Decimal("0"),
+            unrealized_gain_base=Decimal("0"),
+            unrealized_gain_pct=None,
+        )
+
     async def _async_update_data(self) -> PortfolioSnapshot:
         """Fetch the latest data and build a portfolio snapshot."""
         if self._provider != DEFAULT_PROVIDER:
             raise UpdateFailed(f"Unsupported provider configured: {self._provider}")
 
         try:
-            holdings = parse_holdings_text(self._portfolio_text)
+            holdings = self._load_holdings()
+            if not holdings:
+                return self._build_empty_snapshot()
+
             quotes = await self._async_fetch_quotes(holdings)
             fx_rates = await self._async_fetch_fx_rates(holdings, quotes)
             return build_portfolio_snapshot(
@@ -141,5 +170,3 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
             fx_rates[pair] = rate
 
         return fx_rates
-
-

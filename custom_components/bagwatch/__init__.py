@@ -11,6 +11,11 @@ from .coordinator import BagwatchCoordinator
 from .provider import TwelveDataClient
 
 
+async def _async_reload_updated_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the config entry after settings or positions change."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Bagwatch from a config entry."""
     session = async_get_clientsession(hass)
@@ -20,6 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+    entry.async_on_unload(entry.add_update_listener(_async_reload_updated_entry))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -27,5 +33,3 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-

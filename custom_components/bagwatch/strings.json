@@ -3,42 +3,136 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configure portfolio",
-        "description": "Provide your market data API key and portfolio JSON.",
+        "title": "Configure Bagwatch",
+        "description": "Set up the market data provider. You will add positions after the integration is created.",
         "data": {
           "portfolio_name": "Portfolio name",
           "provider": "Data provider",
           "api_key": "API key",
           "base_currency": "Base currency",
-          "scan_interval": "Refresh interval (seconds)",
-          "portfolio": "Portfolio JSON"
+          "scan_interval": "Refresh interval (seconds)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Bagwatch",
+        "description": "Update provider settings for this portfolio.",
+        "data": {
+          "portfolio_name": "Portfolio name",
+          "provider": "Data provider",
+          "api_key": "API key",
+          "base_currency": "Base currency",
+          "scan_interval": "Refresh interval (seconds)"
         }
       }
     },
     "error": {
-      "invalid_configuration": "The configuration is invalid. Check the API key and portfolio JSON."
+      "invalid_configuration": "The provider settings are invalid."
     },
     "abort": {
       "already_configured": "This portfolio is already configured."
     }
   },
+  "config_subentries": {
+    "position": {
+      "entry_type": "Position",
+      "abort": {
+        "reconfigure_successful": "Position updated successfully."
+      },
+      "error": {
+        "invalid_position": "The position data is invalid or incomplete."
+      },
+      "initiate_flow": {
+        "user": "Add position",
+        "reconfigure": "Edit position"
+      },
+      "step": {
+        "init": {
+          "title": "Add position",
+          "description": "Add one portfolio position with purchase data and optional provider hints.",
+          "data": {
+            "symbol": "Symbol",
+            "name": "Display name",
+            "asset_type": "Asset type",
+            "quantity": "Quantity",
+            "average_buy_price": "Average buy price",
+            "buy_currency": "Purchase currency",
+            "cost_basis": "Total cost basis",
+            "cost_currency": "Cost basis currency",
+            "cost_basis_base": "Exact cost basis in portfolio currency",
+            "fees_total": "Fees total",
+            "provider_symbol": "Provider symbol",
+            "exchange": "Exchange hint",
+            "country": "Country hint"
+          },
+          "data_description": {
+            "symbol": "User-facing symbol, for example MSFT.US or BTC.",
+            "name": "Optional friendly name used in Home Assistant.",
+            "asset_type": "Choose the asset class for provider mapping.",
+            "quantity": "Position size. Decimals are allowed.",
+            "average_buy_price": "Average unit buy price. Use with purchase currency.",
+            "buy_currency": "Currency for average buy price, for example USD or PLN.",
+            "cost_basis": "Optional total purchase cost for the whole position.",
+            "cost_currency": "Currency for total cost basis.",
+            "cost_basis_base": "Optional exact total cost already converted to the portfolio base currency.",
+            "fees_total": "Optional total fees to add to the position cost basis.",
+            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough.",
+            "exchange": "Optional exchange hint for ambiguous symbols.",
+            "country": "Optional country hint for ambiguous symbols."
+          }
+        },
+        "reconfigure": {
+          "title": "Edit position",
+          "description": "Update this portfolio position.",
+          "data": {
+            "symbol": "Symbol",
+            "name": "Display name",
+            "asset_type": "Asset type",
+            "quantity": "Quantity",
+            "average_buy_price": "Average buy price",
+            "buy_currency": "Purchase currency",
+            "cost_basis": "Total cost basis",
+            "cost_currency": "Cost basis currency",
+            "cost_basis_base": "Exact cost basis in portfolio currency",
+            "fees_total": "Fees total",
+            "provider_symbol": "Provider symbol",
+            "exchange": "Exchange hint",
+            "country": "Country hint"
+          },
+          "data_description": {
+            "symbol": "User-facing symbol, for example MSFT.US or BTC.",
+            "name": "Optional friendly name used in Home Assistant.",
+            "asset_type": "Choose the asset class for provider mapping.",
+            "quantity": "Position size. Decimals are allowed.",
+            "average_buy_price": "Average unit buy price. Use with purchase currency.",
+            "buy_currency": "Currency for average buy price, for example USD or PLN.",
+            "cost_basis": "Optional total purchase cost for the whole position.",
+            "cost_currency": "Currency for total cost basis.",
+            "cost_basis_base": "Optional exact total cost already converted to the portfolio base currency.",
+            "fees_total": "Optional total fees to add to the position cost basis.",
+            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough.",
+            "exchange": "Optional exchange hint for ambiguous symbols.",
+            "country": "Optional country hint for ambiguous symbols."
+          }
+        }
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {
-        "title": "Portfolio options",
+        "title": "Bagwatch options",
+        "description": "Update provider settings. Positions are managed separately from the integration page.",
         "data": {
           "portfolio_name": "Portfolio name",
           "provider": "Data provider",
           "api_key": "API key",
           "base_currency": "Base currency",
-          "scan_interval": "Refresh interval (seconds)",
-          "portfolio": "Portfolio JSON"
+          "scan_interval": "Refresh interval (seconds)"
         }
       }
     },
     "error": {
-      "invalid_configuration": "The configuration is invalid. Check the API key and portfolio JSON."
+      "invalid_configuration": "The provider settings are invalid."
     }
   }
 }
-
