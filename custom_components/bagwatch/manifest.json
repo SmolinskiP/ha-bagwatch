@@ -9,8 +9,9 @@
   "iot_class": "cloud_polling",
   "loggers": ["custom_components.bagwatch"],
   "requirements": [],
-  "version": "0.1.1"
+  "version": "0.1.2"
 }
+
 
 
 

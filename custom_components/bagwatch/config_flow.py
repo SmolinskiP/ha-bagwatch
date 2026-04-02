@@ -324,12 +324,19 @@ class BagwatchOptionsFlow(OptionsFlow):
 class BagwatchPositionSubentryFlow(ConfigSubentryFlow):
     """Handle Bagwatch position subentries."""
 
-    async def async_step_user(
+    async def async_step_init(
         self,
         user_input: dict[str, Any] | None = None,
     ):
         """Create a new position."""
         return await self._async_handle_position_step("init", user_input)
+
+    async def async_step_user(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ):
+        """Backward-compatible alias for creating a new position."""
+        return await self.async_step_init(user_input)
 
     async def async_step_reconfigure(
         self,
@@ -396,4 +403,6 @@ class BagwatchPositionSubentryFlow(ConfigSubentryFlow):
                 continue
             if subentry.unique_id == symbol_key:
                 raise PortfolioValidationError(f"Position '{symbol}' already exists")
+
+
 
