@@ -33,8 +33,10 @@ from .const import (
     CONF_ASSET_TYPE,
     CONF_BASE_CURRENCY,
     CONF_COINGECKO_API_KEY,
+    CONF_COUNTRY,
     CONF_CRYPTO_PRICE_PROVIDER,
     CONF_CURRENCY,
+    CONF_EXCHANGE,
     CONF_FEES_TOTAL,
     CONF_NAME,
     CONF_PORTFOLIO_NAME,
@@ -46,6 +48,7 @@ from .const import (
     CONF_TRADE_DATE,
     CONF_TRANSACTION_TYPE,
     CONF_UNIT_PRICE,
+    CRYPTO_PROVIDER_COINGECKO_THEN_PRIMARY,
     DEFAULT_ASSET_TYPE,
     DEFAULT_BASE_CURRENCY,
     DEFAULT_CRYPTO_PRICE_PROVIDER,
@@ -54,6 +57,9 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TRANSACTION_TYPE,
     DOMAIN,
+    LEGACY_CRYPTO_PROVIDER_COINGECKO_THEN_TWELVE,
+    LEGACY_CRYPTO_PROVIDER_TWELVE_ONLY,
+    PROVIDER_TWELVE_DATA,
     SUPPORTED_ASSET_TYPES,
     SUPPORTED_CRYPTO_PRICE_PROVIDERS,
     SUPPORTED_PROVIDERS,
@@ -80,6 +86,16 @@ def _subentry_sort_key(subentry: Any) -> tuple[str, str]:
     return ("", getattr(subentry, "subentry_id", ""))
 
 
+def _normalize_crypto_price_provider_value(value: Any) -> str:
+    """Normalize legacy crypto provider values to the current strategy names."""
+    normalized = str(value or DEFAULT_CRYPTO_PRICE_PROVIDER).strip().lower()
+    if normalized == LEGACY_CRYPTO_PROVIDER_COINGECKO_THEN_TWELVE:
+        return CRYPTO_PROVIDER_COINGECKO_THEN_PRIMARY
+    if normalized == LEGACY_CRYPTO_PROVIDER_TWELVE_ONLY:
+        return "primary_only"
+    return normalized or DEFAULT_CRYPTO_PRICE_PROVIDER
+
+
 def _basic_schema(defaults: dict[str, Any]) -> vol.Schema:
     """Build the main integration config schema."""
     schema: dict[Any, Any] = {
@@ -96,15 +112,17 @@ def _basic_schema(defaults: dict[str, Any]) -> vol.Schema:
                 mode=SelectSelectorMode.DROPDOWN,
             )
         ),
-        vol.Required(
+        vol.Optional(
             CONF_API_KEY,
             default=defaults.get(CONF_API_KEY, ""),
         ): str,
         vol.Required(
             CONF_CRYPTO_PRICE_PROVIDER,
-            default=defaults.get(
-                CONF_CRYPTO_PRICE_PROVIDER,
-                DEFAULT_CRYPTO_PRICE_PROVIDER,
+            default=_normalize_crypto_price_provider_value(
+                defaults.get(
+                    CONF_CRYPTO_PRICE_PROVIDER,
+                    DEFAULT_CRYPTO_PRICE_PROVIDER,
+                )
             ),
         ): SelectSelector(
             SelectSelectorConfig(
@@ -211,17 +229,17 @@ def _clean_optional_number(value: Any) -> str | None:
 
 def _normalize_basic_input(user_input: dict[str, Any]) -> dict[str, Any]:
     """Normalize and validate the main integration settings."""
-    api_key = str(user_input[CONF_API_KEY]).strip()
-    if not api_key:
-        raise PortfolioValidationError("API key is required")
-
     provider = str(user_input[CONF_PROVIDER]).strip()
     if provider not in SUPPORTED_PROVIDERS:
         raise PortfolioValidationError(f"Unsupported provider: {provider}")
 
-    crypto_price_provider = str(
-        user_input[CONF_CRYPTO_PRICE_PROVIDER]
-    ).strip()
+    api_key = str(user_input.get(CONF_API_KEY, "")).strip()
+    if provider == PROVIDER_TWELVE_DATA and not api_key:
+        raise PortfolioValidationError("Twelve Data API key is required")
+
+    crypto_price_provider = _normalize_crypto_price_provider_value(
+        user_input.get(CONF_CRYPTO_PRICE_PROVIDER)
+    )
     if crypto_price_provider not in SUPPORTED_CRYPTO_PRICE_PROVIDERS:
         raise PortfolioValidationError(
             f"Unsupported crypto provider strategy: {crypto_price_provider}"

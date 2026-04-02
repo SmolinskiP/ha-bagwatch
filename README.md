@@ -17,7 +17,8 @@ If you already live inside Home Assistant, Bagwatch lets your portfolio live the
 - **Dashboard-ready sensors** - Built to work nicely with cards, charts, statistics, and automations
 - **Delete Position action** - Remove a tracked asset cleanly from the device view
 - **Base currency support** - Keep portfolio stats in the currency you actually want to see
-- **Multi-provider crypto support** - Use CoinGecko for crypto with fallback to Twelve Data
+- **Multi-provider support** - Use Twelve Data or experimental Yahoo Finance as the primary provider
+- **Crypto-first routing** - Use CoinGecko for crypto with fallback to the selected primary provider
 - **Home Assistant-native setup** - Config flow, entities, devices, and HACS-friendly structure
 
 ## Why Bagwatch
@@ -79,10 +80,15 @@ Before you start, you need:
 
 - a working Home Assistant instance
 - access to HACS or your Home Assistant `config` directory
-- a Twelve Data API key
+- either a Twelve Data API key or Yahoo Finance selected as the primary provider
 - optionally, a CoinGecko API key for better crypto handling
 
-Bagwatch uses Twelve Data for stocks, ETFs, and FX. For crypto, it can use CoinGecko first and fall back to Twelve Data if needed.
+Bagwatch supports two primary provider modes:
+
+- **Twelve Data** for stocks, ETFs, crypto, and FX with an API key
+- **Yahoo Finance (experimental)** for stocks, ETFs, crypto, and FX without a Twelve Data key
+
+For crypto, Bagwatch can use CoinGecko first and then fall back to whichever primary provider you selected.
 
 Get your keys here:
 
@@ -126,13 +132,14 @@ config/
 ## Configuration
 
 1. Add the `Bagwatch` integration from `Settings > Devices & services`.
-2. Enter your Twelve Data API key.
-3. Choose the crypto price strategy.
-4. Optionally enter your CoinGecko API key.
-5. Choose the base currency for the portfolio.
-6. Set the refresh interval.
-7. Finish the integration setup.
-8. Open the integration and add transactions one by one.
+2. Choose the primary market data provider.
+3. Enter your Twelve Data API key if you selected Twelve Data.
+4. Choose the crypto price strategy.
+5. Optionally enter your CoinGecko API key.
+6. Choose the base currency for the portfolio.
+7. Set the refresh interval.
+8. Finish the integration setup.
+9. Open the integration and add transactions one by one.
 
 Each transaction includes:
 
@@ -147,7 +154,11 @@ Each transaction includes:
 - optional display name
 - optional provider symbol
 
-For crypto, you can also provide a CoinGecko coin id as `provider_symbol`, using prefixes like `cg:bitcoin`.
+Provider symbol tips:
+
+- use `cg:bitcoin` for an exact CoinGecko crypto id
+- use `yf:PKN.WA` or `yahoo:BTC-USD` for an exact Yahoo Finance symbol
+- use an exact provider symbol when the user-facing symbol is ambiguous
 
 Once transactions are added, Bagwatch builds the current portfolio state automatically.
 
@@ -181,6 +192,7 @@ It is meant to give you solid raw entities first, so your dashboard can look exa
 
 - Bagwatch is focused on practical portfolio tracking inside Home Assistant.
 - A tracked asset can be removed using the `Delete Position` action on the asset device.
+- Yahoo Finance support is experimental and unofficial, so it may break if Yahoo changes its endpoints.
 - The current accounting model is intentionally simple and useful: transaction-based, without turning the integration into accounting software.
 
 ## Star History

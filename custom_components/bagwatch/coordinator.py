@@ -19,12 +19,16 @@ from .const import (
     CONF_PORTFOLIO_NAME,
     CONF_PROVIDER,
     CONF_SCAN_INTERVAL,
-    CRYPTO_PROVIDER_COINGECKO_THEN_TWELVE,
+    CRYPTO_PROVIDER_COINGECKO_THEN_PRIMARY,
     DEFAULT_BASE_CURRENCY,
     DEFAULT_CRYPTO_PRICE_PROVIDER,
     DEFAULT_PORTFOLIO_NAME,
     DEFAULT_PROVIDER,
     DEFAULT_SCAN_INTERVAL,
+    LEGACY_CRYPTO_PROVIDER_COINGECKO_THEN_TWELVE,
+    LEGACY_CRYPTO_PROVIDER_TWELVE_ONLY,
+    PROVIDER_TWELVE_DATA,
+    PROVIDER_YAHOO_FINANCE,
 )
 from .models import (
     AssetConfig,
@@ -41,7 +45,12 @@ from .models import (
     parse_holdings_text,
     parse_transactions_data,
 )
-from .provider import CoinGeckoClient, MarketDataError, TwelveDataClient
+from .provider import (
+    CoinGeckoClient,
+    MarketDataError,
+    TwelveDataClient,
+    YahooFinanceClient,
+)
 
 _LOGGER = logging.getLogger(__name__)
 LEGACY_SUBENTRY_TYPE_POSITION = "position"
@@ -59,9 +68,19 @@ def _subentry_sort_key(subentry: Any) -> tuple[str, str]:
 
 
 def _is_rate_limit_error(err: MarketDataError) -> bool:
-    """Return True when Twelve Data rejected the call due to rate limiting."""
+    """Return True when a provider rejected the call due to rate limiting."""
     message = str(err).lower()
     return "api credits" in message or "current minute" in message or "rate limit" in message
+
+
+def _normalize_crypto_price_provider(value: str | None) -> str:
+    """Normalize legacy crypto provider strategy values."""
+    normalized = (value or DEFAULT_CRYPTO_PRICE_PROVIDER).strip().lower()
+    if normalized == LEGACY_CRYPTO_PROVIDER_COINGECKO_THEN_TWELVE:
+        return CRYPTO_PROVIDER_COINGECKO_THEN_PRIMARY
+    if normalized == LEGACY_CRYPTO_PROVIDER_TWELVE_ONLY:
+        return "primary_only"
+    return normalized or DEFAULT_CRYPTO_PRICE_PROVIDER
 
 
 class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
@@ -75,18 +94,25 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
         entry: ConfigEntry,
         twelve_data_client: TwelveDataClient,
         coingecko_client: CoinGeckoClient,
+        yahoo_finance_client: YahooFinanceClient,
     ) -> None:
         """Initialize the coordinator."""
         self.config_entry = entry
         self._twelve_data_client = twelve_data_client
         self._coingecko_client = coingecko_client
+        self._yahoo_finance_client = yahoo_finance_client
         self._portfolio_name = str(
             self._entry_value(CONF_PORTFOLIO_NAME, DEFAULT_PORTFOLIO_NAME)
         ).strip()
         self._provider = str(self._entry_value(CONF_PROVIDER, DEFAULT_PROVIDER)).strip()
-        self._crypto_price_provider = str(
-            self._entry_value(CONF_CRYPTO_PRICE_PROVIDER, DEFAULT_CRYPTO_PRICE_PROVIDER)
-        ).strip()
+        self._crypto_price_provider = _normalize_crypto_price_provider(
+            str(
+                self._entry_value(
+                    CONF_CRYPTO_PRICE_PROVIDER,
+                    DEFAULT_CRYPTO_PRICE_PROVIDER,
+                )
+            )
+        )
         self._base_currency = str(
             self._entry_value(CONF_BASE_CURRENCY, DEFAULT_BASE_CURRENCY)
         ).strip().upper()
@@ -171,9 +197,6 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
 
     async def _async_update_data(self) -> PortfolioSnapshot:
         """Fetch the latest data and build a portfolio snapshot."""
-        if self._provider != DEFAULT_PROVIDER:
-            raise UpdateFailed(f"Unsupported provider configured: {self._provider}")
-
         try:
             transactions = self._load_transactions()
             legacy_holdings = self._load_legacy_holdings()
@@ -230,68 +253,79 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
         self,
         assets: list[AssetConfig],
     ) -> dict[str, MarketQuote]:
-        """Fetch quotes with multi-provider routing and fallback."""
+        """Fetch quotes with provider routing and crypto fallback."""
         quotes: dict[str, MarketQuote] = {}
-        twelve_assets: list[AssetConfig] = [
+        primary_assets: list[AssetConfig] = [
             asset for asset in assets if asset.asset_type != "crypto"
         ]
         crypto_assets: list[AssetConfig] = [
             asset for asset in assets if asset.asset_type == "crypto"
         ]
 
-        if crypto_assets and self._crypto_price_provider == CRYPTO_PROVIDER_COINGECKO_THEN_TWELVE:
+        if (
+            crypto_assets
+            and self._crypto_price_provider == CRYPTO_PROVIDER_COINGECKO_THEN_PRIMARY
+        ):
             try:
                 coingecko_quotes, unresolved_assets = await self._coingecko_client.async_get_crypto_quotes(
                     crypto_assets,
                     quote_currency="usd",
                 )
                 quotes.update(coingecko_quotes)
-                twelve_assets.extend(unresolved_assets)
+                primary_assets.extend(unresolved_assets)
                 if unresolved_assets:
                     _LOGGER.info(
-                        "CoinGecko could not resolve %s crypto asset(s); falling back to Twelve Data",
+                        "CoinGecko could not resolve %s crypto asset(s); falling back to the selected primary provider",
                         len(unresolved_assets),
                     )
             except MarketDataError as err:
                 _LOGGER.warning(
-                    "CoinGecko crypto fetch failed, falling back to Twelve Data: %s",
+                    "CoinGecko crypto fetch failed, falling back to the selected primary provider: %s",
                     err,
                 )
-                twelve_assets.extend(crypto_assets)
+                primary_assets.extend(crypto_assets)
         else:
-            twelve_assets.extend(crypto_assets)
+            primary_assets.extend(crypto_assets)
 
-        if twelve_assets:
-            tasks = [
-                self._twelve_data_client.async_get_quote(asset.to_provider_query())
-                for asset in twelve_assets
-            ]
-            results = await asyncio.gather(*tasks)
-            quotes.update(
-                {
-                    asset.key: quote
-                    for asset, quote in zip(twelve_assets, results, strict=True)
-                }
-            )
+        if primary_assets:
+            quotes.update(await self._async_fetch_primary_quotes(primary_assets))
 
         return quotes
+
+    async def _async_fetch_primary_quotes(
+        self,
+        assets: list[AssetConfig],
+    ) -> dict[str, MarketQuote]:
+        """Fetch quotes from the configured primary provider."""
+        if not assets:
+            return {}
+
+        if self._provider == PROVIDER_TWELVE_DATA:
+            tasks = [
+                self._twelve_data_client.async_get_quote(asset.to_provider_query())
+                for asset in assets
+            ]
+        elif self._provider == PROVIDER_YAHOO_FINANCE:
+            tasks = [
+                self._yahoo_finance_client.async_get_quote(asset)
+                for asset in assets
+            ]
+        else:
+            raise MarketDataError(f"Unsupported provider configured: {self._provider}")
+
+        results = await asyncio.gather(*tasks)
+        return {
+            asset.key: quote
+            for asset, quote in zip(assets, results, strict=True)
+        }
 
     async def _async_fetch_quotes_for_holdings(
         self,
         holdings: list[HoldingConfig],
     ) -> dict[str, MarketQuote]:
         """Fetch quotes for legacy holdings."""
-        tasks = [
-            self._twelve_data_client.async_get_quote(
-                holding.to_asset_config().to_provider_query()
-            )
-            for holding in holdings
-        ]
-        results = await asyncio.gather(*tasks)
-        return {
-            holding.key: quote
-            for holding, quote in zip(holdings, results, strict=True)
-        }
+        assets = [holding.to_asset_config() for holding in holdings]
+        return await self._async_fetch_quotes_for_assets(assets)
 
     async def _async_fetch_fx_rates_for_transactions(
         self,
@@ -317,7 +351,7 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
             return fx_rates
 
         tasks = [
-            self._twelve_data_client.async_get_exchange_rate(source, target)
+            self._async_get_exchange_rate(source, target)
             for source, target in pairs_to_fetch
         ]
         results = await asyncio.gather(*tasks)
@@ -353,7 +387,7 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
             return fx_rates
 
         tasks = [
-            self._twelve_data_client.async_get_exchange_rate(source, target)
+            self._async_get_exchange_rate(source, target)
             for source, target in pairs_to_fetch
         ]
         results = await asyncio.gather(*tasks)
@@ -361,3 +395,21 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
             fx_rates[pair] = rate
 
         return fx_rates
+
+    async def _async_get_exchange_rate(
+        self,
+        source_currency: str,
+        target_currency: str,
+    ) -> Decimal:
+        """Fetch FX using the selected primary provider."""
+        if self._provider == PROVIDER_TWELVE_DATA:
+            return await self._twelve_data_client.async_get_exchange_rate(
+                source_currency,
+                target_currency,
+            )
+        if self._provider == PROVIDER_YAHOO_FINANCE:
+            return await self._yahoo_finance_client.async_get_exchange_rate(
+                source_currency,
+                target_currency,
+            )
+        raise MarketDataError(f"Unsupported provider configured: {self._provider}")

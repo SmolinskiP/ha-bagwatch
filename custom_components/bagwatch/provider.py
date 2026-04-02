@@ -13,6 +13,11 @@ from aiohttp import ClientError, ClientSession
 
 from .models import AssetConfig, MarketQuote, ProviderQuery
 
+try:
+    import yfinance as yf
+except ImportError:  # pragma: no cover - runtime dependency in Home Assistant
+    yf = None
+
 
 class MarketDataError(RuntimeError):
     """Raised when a market data provider call fails."""
@@ -353,3 +358,233 @@ class CoinGeckoClient:
         if isinstance(payload, list):
             return list(payload)
         return payload
+
+
+class YahooFinanceClient:
+    """Experimental Yahoo Finance client powered by yfinance."""
+
+    _CACHE_TTL_SECONDS = 65.0
+    _SUFFIX_MAP = {
+        "US": "",
+        "PL": ".WA",
+        "UK": ".L",
+        "NL": ".AS",
+        "FR": ".PA",
+        "DE": ".DE",
+    }
+
+    def __init__(self) -> None:
+        """Initialize the client."""
+        self._response_cache: dict[tuple[str, str], tuple[float, Any]] = {}
+
+    async def async_get_quote(self, asset: AssetConfig) -> MarketQuote:
+        """Fetch the latest quote for an asset via Yahoo Finance."""
+        yahoo_symbol = self._resolve_symbol(asset)
+        cache_key = ("quote", yahoo_symbol)
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        payload = await asyncio.to_thread(self._sync_get_quote_payload, asset, yahoo_symbol)
+        self._response_cache[cache_key] = (time.monotonic(), payload)
+        return payload
+
+    async def async_get_exchange_rate(
+        self,
+        source_currency: str,
+        target_currency: str,
+    ) -> Decimal:
+        """Fetch an FX rate via Yahoo Finance."""
+        if source_currency == target_currency:
+            return Decimal("1")
+
+        yahoo_symbol = f"{source_currency.upper()}{target_currency.upper()}=X"
+        cache_key = ("fx", yahoo_symbol)
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        rate = await asyncio.to_thread(
+            self._sync_get_exchange_rate,
+            yahoo_symbol,
+            source_currency.upper(),
+            target_currency.upper(),
+        )
+        self._response_cache[cache_key] = (time.monotonic(), rate)
+        return rate
+
+    def _get_cached(self, cache_key: tuple[str, str]) -> Any | None:
+        """Return a cached response when it is still fresh."""
+        cached = self._response_cache.get(cache_key)
+        if cached is None:
+            return None
+        if time.monotonic() - cached[0] >= self._CACHE_TTL_SECONDS:
+            return None
+        return cached[1]
+
+    def _sync_get_quote_payload(
+        self,
+        asset: AssetConfig,
+        yahoo_symbol: str,
+    ) -> MarketQuote:
+        """Resolve a Yahoo quote synchronously inside the executor."""
+        ticker = self._ticker(yahoo_symbol)
+        raw_price: Any = None
+        currency: str | None = None
+        exchange: str | None = None
+        asset_type: str | None = None
+        as_of: str | None = None
+
+        fast_info = self._safe_mapping(getattr(ticker, "fast_info", None))
+        if fast_info:
+            raw_price = self._first_value(
+                fast_info.get("lastPrice"),
+                fast_info.get("regularMarketPrice"),
+                fast_info.get("previousClose"),
+            )
+            currency = self._normalize_text(fast_info.get("currency"))
+            exchange = self._normalize_text(fast_info.get("exchange"))
+
+        info = self._safe_mapping(getattr(ticker, "info", None))
+        if info:
+            raw_price = self._first_value(
+                raw_price,
+                info.get("regularMarketPrice"),
+                info.get("currentPrice"),
+                info.get("previousClose"),
+                info.get("navPrice"),
+            )
+            currency = currency or self._normalize_text(info.get("currency"))
+            exchange = exchange or self._normalize_text(
+                info.get("fullExchangeName") or info.get("exchange")
+            )
+            asset_type = self._normalize_text(info.get("quoteType"))
+
+        history = ticker.history(period="5d", interval="1d", auto_adjust=False, actions=False)
+        if hasattr(history, "empty") and not history.empty:
+            latest_row = history.iloc[-1]
+            raw_price = self._first_value(raw_price, latest_row.get("Close"))
+            latest_index = history.index[-1]
+            if hasattr(latest_index, "to_pydatetime"):
+                latest_dt = latest_index.to_pydatetime()
+                if latest_dt.tzinfo is None:
+                    latest_dt = latest_dt.replace(tzinfo=UTC)
+                as_of = latest_dt.isoformat()
+
+        if raw_price is None:
+            raise MarketDataError(f"No Yahoo Finance price returned for symbol '{yahoo_symbol}'")
+
+        try:
+            price = Decimal(str(raw_price))
+        except (InvalidOperation, TypeError) as err:
+            raise MarketDataError(
+                f"Invalid Yahoo Finance price returned for symbol '{yahoo_symbol}': {raw_price!r}"
+            ) from err
+
+        if currency is None:
+            currency = "USD"
+
+        return MarketQuote(
+            symbol=yahoo_symbol,
+            price=price,
+            currency=currency.upper(),
+            exchange=exchange or "Yahoo Finance",
+            asset_type=asset_type,
+            as_of=as_of,
+        )
+
+    def _sync_get_exchange_rate(
+        self,
+        yahoo_symbol: str,
+        source_currency: str,
+        target_currency: str,
+    ) -> Decimal:
+        """Resolve a Yahoo FX rate synchronously inside the executor."""
+        quote = self._sync_get_quote_payload(
+            AssetConfig(
+                symbol=f"{source_currency}/{target_currency}",
+                asset_type="forex",
+                name=None,
+                provider_symbol=yahoo_symbol,
+                exchange=None,
+                country=None,
+            ),
+            yahoo_symbol,
+        )
+        return quote.price
+
+    def _ticker(self, symbol: str):
+        """Return a yfinance ticker instance or raise a clear error."""
+        if yf is None:
+            raise MarketDataError(
+                "Yahoo Finance support requires the optional 'yfinance' package"
+            )
+        try:
+            return yf.Ticker(symbol)
+        except Exception as err:  # pragma: no cover - library-specific failures
+            raise MarketDataError(
+                f"Failed to initialize Yahoo Finance ticker '{symbol}'"
+            ) from err
+
+    def _resolve_symbol(self, asset: AssetConfig) -> str:
+        """Resolve the symbol format expected by Yahoo Finance."""
+        explicit = self._explicit_provider_symbol(asset.provider_symbol)
+        if explicit:
+            return explicit
+
+        if asset.asset_type == "crypto":
+            symbol_core = asset.symbol.split(".", 1)[0].split("/", 1)[0].split("-", 1)[0]
+            return f"{symbol_core.strip().upper()}-USD"
+
+        symbol = asset.symbol.strip().upper()
+        if " " in symbol:
+            raise MarketDataError(
+                f"Asset '{asset.symbol}' requires a Yahoo-specific provider symbol"
+            )
+
+        if "." in symbol:
+            ticker, suffix = symbol.rsplit(".", 1)
+            mapped_suffix = self._SUFFIX_MAP.get(suffix.upper())
+            if mapped_suffix is not None:
+                return f"{ticker.upper()}{mapped_suffix}"
+
+        return symbol
+
+    def _explicit_provider_symbol(self, provider_symbol: str | None) -> str | None:
+        """Extract a Yahoo-specific provider symbol hint when present."""
+        if not provider_symbol:
+            return None
+        cleaned = provider_symbol.strip()
+        lowered = cleaned.lower()
+        if lowered.startswith(("cg:", "coingecko:")):
+            return None
+        for prefix in ("yahoo:", "yf:"):
+            if lowered.startswith(prefix):
+                explicit = cleaned[len(prefix):].strip()
+                return explicit or None
+        return cleaned or None
+
+    def _safe_mapping(self, payload: Any) -> dict[str, Any] | None:
+        """Return a dict-like payload if one is available."""
+        if payload is None:
+            return None
+        if isinstance(payload, dict):
+            return payload
+        try:
+            return dict(payload)
+        except (TypeError, ValueError):
+            return None
+
+    def _first_value(self, *values: Any) -> Any:
+        """Return the first usable value from a list of candidates."""
+        for value in values:
+            if value not in (None, ""):
+                return value
+        return None
+
+    def _normalize_text(self, value: Any) -> str | None:
+        """Normalize optional textual payload values."""
+        if value is None:
+            return None
+        cleaned = str(value).strip()
+        return cleaned or None
