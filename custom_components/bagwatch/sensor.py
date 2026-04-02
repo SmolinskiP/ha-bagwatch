@@ -19,13 +19,17 @@ from .const import (
     ATTR_AVERAGE_COST_BASE,
     ATTR_BASE_CURRENCY,
     ATTR_DATA_SOURCE,
+    ATTR_DIVIDEND_YIELD,
     ATTR_IS_CLOSED,
     ATTR_IS_FX_ESTIMATE,
     ATTR_LAST_TRADE_DATE,
+    ATTR_MARKET_CAP,
     ATTR_POSITION_COUNT,
+    ATTR_PREVIOUS_CLOSE,
     ATTR_PRICE_TO_BASE_RATE,
     ATTR_QUOTE_CURRENCY,
     ATTR_TRANSACTION_COUNT,
+    ATTR_VOLUME,
     DOMAIN,
 )
 from .coordinator import BagwatchCoordinator
@@ -185,6 +189,42 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
         key="transaction_count",
         name="Transactions Count",
         icon="mdi:timeline-outline",
+    ),
+    PositionMetric(
+        key="daily_change",
+        name="Daily Change",
+        icon="mdi:chart-line-variant",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.MEASUREMENT,
+        monetary_unit="quote",
+    ),
+    PositionMetric(
+        key="daily_change_pct",
+        name="Daily Change Percentage",
+        icon="mdi:percent-circle-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        unit=PERCENTAGE,
+    ),
+    PositionMetric(
+        key="volume",
+        name="Volume",
+        icon="mdi:chart-histogram",
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    PositionMetric(
+        key="market_cap",
+        name="Market Cap",
+        icon="mdi:office-building",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.MEASUREMENT,
+        monetary_unit="quote",
+    ),
+    PositionMetric(
+        key="dividend_yield",
+        name="Dividend Yield",
+        icon="mdi:percent",
+        state_class=SensorStateClass.MEASUREMENT,
+        unit=PERCENTAGE,
     ),
 )
 
@@ -423,6 +463,24 @@ class PositionSensor(PortfolioBaseEntity):
             return self._round(position.realized_gain_pct, 2)
         if self._metric.key == "transaction_count":
             return position.transaction_count
+        if self._metric.key == "daily_change":
+            if position.quote.previous_close is None:
+                return None
+            return self._round(position.quote.price - position.quote.previous_close, 6)
+        if self._metric.key == "daily_change_pct":
+            if position.quote.previous_close in (None, Decimal("0")):
+                return None
+            return self._round(
+                ((position.quote.price - position.quote.previous_close) / position.quote.previous_close)
+                * Decimal("100"),
+                2,
+            )
+        if self._metric.key == "volume":
+            return position.quote.volume
+        if self._metric.key == "market_cap":
+            return self._round(position.quote.market_cap, 2)
+        if self._metric.key == "dividend_yield":
+            return self._round(position.quote.dividend_yield, 2)
         return None
 
     @property
@@ -439,6 +497,10 @@ class PositionSensor(PortfolioBaseEntity):
             ATTR_PRICE_TO_BASE_RATE: self._round(position.price_to_base_rate, 8),
             ATTR_IS_FX_ESTIMATE: position.is_fx_estimate,
             ATTR_AS_OF: position.quote.as_of,
+            ATTR_PREVIOUS_CLOSE: self._round(position.quote.previous_close, 6),
+            ATTR_VOLUME: position.quote.volume,
+            ATTR_MARKET_CAP: self._round(position.quote.market_cap, 2),
+            ATTR_DIVIDEND_YIELD: self._round(position.quote.dividend_yield, 2),
             ATTR_TRANSACTION_COUNT: position.transaction_count,
             ATTR_AVERAGE_COST_BASE: self._round(position.average_cost_base, 8),
             ATTR_LAST_TRADE_DATE: position.last_trade_date.isoformat(),

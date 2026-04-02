@@ -69,6 +69,16 @@ class TwelveDataClient:
             exchange=payload.get("exchange"),
             asset_type=payload.get("type"),
             as_of=payload.get("datetime"),
+            previous_close=self._optional_decimal(
+                payload.get("previous_close") or payload.get("previousClose")
+            ),
+            volume=self._optional_int(payload.get("volume")),
+            market_cap=self._optional_decimal(
+                payload.get("market_cap") or payload.get("marketCap")
+            ),
+            dividend_yield=self._optional_percentage(
+                payload.get("dividend_yield") or payload.get("dividendYield")
+            ),
         )
 
     async def async_get_exchange_rate(
@@ -148,6 +158,31 @@ class TwelveDataClient:
         self._response_cache[cache_key] = (now, dict(payload))
         return payload
 
+    def _optional_decimal(self, value: Any) -> Decimal | None:
+        """Convert an optional numeric provider field into Decimal."""
+        if value in (None, ""):
+            return None
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError):
+            return None
+
+    def _optional_int(self, value: Any) -> int | None:
+        """Convert an optional numeric provider field into int."""
+        if value in (None, ""):
+            return None
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
+
+    def _optional_percentage(self, value: Any) -> Decimal | None:
+        """Normalize optional percentage-like fields into percent units."""
+        numeric = self._optional_decimal(value)
+        if numeric is None:
+            return None
+        return numeric * Decimal("100") if Decimal("0") < numeric <= Decimal("1") else numeric
+
 
 class CoinGeckoClient:
     """Minimal CoinGecko client for crypto quotes."""
@@ -193,6 +228,7 @@ class CoinGeckoClient:
                 "ids": ",".join(requested_ids),
                 "vs_currencies": quote_currency.lower(),
                 "include_last_updated_at": "true",
+                "include_market_cap": "true",
             },
             ttl_seconds=self._PRICE_CACHE_TTL_SECONDS,
         )
@@ -232,6 +268,9 @@ class CoinGeckoClient:
                 exchange="CoinGecko",
                 asset_type="Digital Currency",
                 as_of=as_of,
+                market_cap=self._optional_decimal(
+                    coin_payload.get(f"{quote_currency.lower()}_market_cap")
+                ),
             )
 
         return quotes, unresolved
@@ -359,6 +398,15 @@ class CoinGeckoClient:
             return list(payload)
         return payload
 
+    def _optional_decimal(self, value: Any) -> Decimal | None:
+        """Convert an optional numeric provider field into Decimal."""
+        if value in (None, ""):
+            return None
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError):
+            return None
+
 
 class YahooFinanceClient:
     """Experimental Yahoo Finance client powered by yfinance."""
@@ -484,6 +532,30 @@ class YahooFinanceClient:
         if currency is None:
             currency = "USD"
 
+        previous_close = self._first_decimal(
+            fast_info.get("regularMarketPreviousClose"),
+            fast_info.get("previousClose"),
+            info.get("previousClose"),
+            history.iloc[-2].get("Close")
+            if hasattr(history, "empty") and getattr(history, "shape", (0, 0))[0] >= 2
+            else None,
+        )
+        volume = self._first_int(
+            history.iloc[-1].get("Volume")
+            if hasattr(history, "empty") and not history.empty
+            else None,
+            fast_info.get("lastVolume"),
+            info.get("volume"),
+        )
+        market_cap = self._first_decimal(
+            fast_info.get("marketCap"),
+            info.get("marketCap"),
+        )
+        dividend_yield = self._normalize_dividend_yield(
+            info.get("dividendYield"),
+            info.get("trailingAnnualDividendYield"),
+        )
+
         return MarketQuote(
             symbol=yahoo_symbol,
             price=price,
@@ -491,6 +563,10 @@ class YahooFinanceClient:
             exchange=exchange or "Yahoo Finance",
             asset_type=asset_type,
             as_of=as_of,
+            previous_close=previous_close,
+            volume=volume,
+            market_cap=market_cap,
+            dividend_yield=dividend_yield,
         )
 
     def _sync_get_exchange_rate(
@@ -588,3 +664,56 @@ class YahooFinanceClient:
             return None
         cleaned = str(value).strip()
         return cleaned or None
+
+    def _first_decimal(self, *values: Any) -> Decimal | None:
+        """Return the first value that can be parsed as Decimal."""
+        for value in values:
+            decimal_value = self._to_decimal(value)
+            if decimal_value is not None:
+                return decimal_value
+        return None
+
+    def _first_int(self, *values: Any) -> int | None:
+        """Return the first value that can be parsed as int."""
+        for value in values:
+            int_value = self._to_int(value)
+            if int_value is not None:
+                return int_value
+        return None
+
+    def _to_decimal(self, value: Any) -> Decimal | None:
+        """Parse optional numerics into Decimal, ignoring invalid payloads."""
+        if value in (None, ""):
+            return None
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, TypeError):
+            return None
+
+    def _to_int(self, value: Any) -> int | None:
+        """Parse optional numerics into int, ignoring invalid payloads."""
+        if value in (None, ""):
+            return None
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
+
+    def _normalize_dividend_yield(
+        self,
+        dividend_yield: Any,
+        trailing_dividend_yield: Any,
+    ) -> Decimal | None:
+        """Normalize Yahoo dividend yield values into percent units."""
+        primary = self._to_decimal(dividend_yield)
+        if primary is not None:
+            return primary
+
+        trailing = self._to_decimal(trailing_dividend_yield)
+        if trailing is None:
+            return None
+        return trailing * Decimal("100") if Decimal("0") < trailing <= Decimal("1") else trailing
+
+    def _optional_decimal(self, value: Any) -> Decimal | None:
+        """Alias for optional decimal parsing."""
+        return self._to_decimal(value)

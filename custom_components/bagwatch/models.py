@@ -373,6 +373,10 @@ class MarketQuote:
     exchange: str | None = None
     asset_type: str | None = None
     as_of: str | None = None
+    previous_close: Decimal | None = None
+    volume: int | None = None
+    market_cap: Decimal | None = None
+    dividend_yield: Decimal | None = None
 
 
 @dataclass(slots=True, frozen=True)
