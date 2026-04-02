@@ -2,7 +2,7 @@
 
 Bagwatch is a Home Assistant integration for tracking stocks, ETFs, and crypto without turning your setup into a spreadsheet graveyard.
 
-It gives you portfolio stats, per-asset sensors, transaction-based tracking, and clean data you can drop straight into dashboards, cards, automations, and statistics views.
+It gives you portfolio stats, per-asset entities, transaction-based tracking, and clean data you can drop straight into dashboards, cards, automations, and statistics views.
 
 If you already live inside Home Assistant, Bagwatch lets your portfolio live there too.
 
@@ -10,16 +10,16 @@ If you already live inside Home Assistant, Bagwatch lets your portfolio live the
 
 ## Key Features
 
-- **Transaction-based tracking** - Add buys and sells instead of manually recalculating positions
-- **Portfolio-level statistics** - Current value, open cost basis, realized and unrealized P/L
-- **Per-asset entities** - Track each asset separately inside Home Assistant
+- **Transaction-based tracking** - Add buy and sell transactions instead of manually recalculating positions
+- **Portfolio-level statistics** - Current value, open cost basis, unrealized P/L, realized P/L, open positions count, transaction count
+- **Per-asset entities** - Each tracked asset gets its own device and sensors inside Home Assistant
 - **Stocks, ETFs, and crypto** - One integration for the assets most people actually care about
-- **Dashboard-ready sensors** - Built to work nicely with cards, charts, statistics, and automations
 - **Delete Position action** - Remove a tracked asset cleanly from the device view
 - **Base currency support** - Keep portfolio stats in the currency you actually want to see
-- **Multi-provider support** - Use Twelve Data or experimental Yahoo Finance as the primary provider
-- **Crypto-first routing** - Use CoinGecko for crypto with fallback to the selected primary provider
-- **Home Assistant-native setup** - Config flow, entities, devices, and HACS-friendly structure
+- **Multi-provider setup** - Use Yahoo Finance or Twelve Data as the primary market data provider
+- **Optional CoinGecko crypto routing** - Keep crypto on the primary provider or use CoinGecko first with fallback to the selected primary provider
+- **Dashboard-ready sensors** - Built to work nicely with cards, charts, statistics, and automations
+- **Home Assistant-native setup** - Config flow, options flow, devices, entities, and HACS-friendly structure
 
 ## Why Bagwatch
 
@@ -36,14 +36,16 @@ Use it to:
 - build custom dashboards with native Home Assistant entities
 - manage buys and sells without recalculating average cost by hand
 
-## What it gives you
+## What You Get
 
-After setup, Bagwatch creates portfolio-level sensors such as:
+After setup, Bagwatch creates portfolio-level entities such as:
 
 - current portfolio value
 - open cost basis
 - unrealized gain / loss
+- unrealized gain percentage
 - realized gain / loss
+- realized gain percentage
 - open positions count
 - transactions count
 
@@ -53,14 +55,17 @@ Each tracked asset also gets its own entities, including:
 - quantity
 - average cost
 - current value
+- open cost basis
 - unrealized gain / loss
 - realized gain / loss
+- transactions count
+- delete position action
 
 This makes it easy to build anything from a simple summary card to a full-screen finance dashboard.
 
 <!-- Suggested screenshot: asset device page with sensors like current price, quantity, unrealized P/L -->
 
-## How it works
+## How It Works
 
 Bagwatch uses a transaction-based model.
 
@@ -80,15 +85,25 @@ Before you start, you need:
 
 - a working Home Assistant instance
 - access to HACS or your Home Assistant `config` directory
-- by default, nothing beyond Home Assistant itself. Yahoo Finance is selected as the primary provider on first setup, and Twelve Data is available if you want an API-key-based provider
-- optionally, a CoinGecko API key for better crypto handling
+- optionally, a Twelve Data API key
+- optionally, a CoinGecko API key for crypto
 
-Bagwatch supports two primary provider modes:
+By default, Bagwatch starts with:
 
-- **Twelve Data** for stocks, ETFs, crypto, and FX with an API key
+- **Yahoo Finance** as the primary provider
+- **primary_only** as the default crypto strategy
+
+That means you can install it and start testing without entering API keys immediately.
+
+Bagwatch currently supports two primary provider modes:
+
 - **Yahoo Finance (experimental)** for stocks, ETFs, crypto, and FX without a Twelve Data key
+- **Twelve Data** for stocks, ETFs, crypto, and FX with an API key
 
-For crypto, Bagwatch can use CoinGecko first and then fall back to whichever primary provider you selected.
+For crypto, you can either:
+
+- keep using the selected primary provider
+- or use **CoinGecko first** and fall back to the selected primary provider
 
 Get your keys here:
 
@@ -164,7 +179,7 @@ Once transactions are added, Bagwatch builds the current portfolio state automat
 
 <!-- Suggested screenshot: add transaction flow -->
 
-## Supported assets
+## Supported Assets
 
 Bagwatch currently supports:
 
@@ -172,7 +187,7 @@ Bagwatch currently supports:
 - ETFs
 - crypto
 
-## Built for dashboards
+## Built for Dashboards
 
 Bagwatch is useful on its own, but it gets much better once you put it on a dashboard.
 
@@ -187,6 +202,24 @@ Good dashboard ideas:
 It is meant to give you solid raw entities first, so your dashboard can look exactly how you want instead of how some external app decided it should.
 
 <!-- Suggested screenshot: polished dashboard with stats and charts -->
+
+## Local Provider Testing
+
+If you want to debug provider behavior outside of Home Assistant, Bagwatch also includes local test scripts under `scripts/`.
+
+You can fill in your local `.env` and test providers directly:
+
+```powershell
+python scripts\test_twelve_data.py quote
+python scripts\test_twelve_data.py fx
+python scripts\test_coingecko.py price
+python scripts\test_coingecko.py coins --match bitcoin
+python scripts\test_yahoo_finance.py quote
+python scripts\test_yahoo_finance.py fx
+python scripts\test_all_providers.py
+```
+
+This is useful when you want to confirm symbol formats, API keys, or provider responses before blaming the integration.
 
 ## Notes
 
