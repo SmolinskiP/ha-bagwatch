@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -25,11 +27,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up button entities for a config entry."""
     coordinator: BagwatchCoordinator = entry.runtime_data
-    entities: list[ButtonEntity] = []
-
-    if coordinator.data is not None:
-        for position in coordinator.data.positions:
-            entities.append(DeletePositionButton(coordinator, entry, position.asset.key))
+    entities = [
+        DeletePositionButton(coordinator, entry, asset.key)
+        for asset in coordinator.get_configured_assets()
+    ]
 
     async_add_entities(entities)
 
@@ -67,7 +68,16 @@ class DeletePositionButton(PortfolioBaseEntity, ButtonEntity):
     @property
     def available(self) -> bool:
         """Return availability."""
-        return super().available and self._position is not None
+        return super().available and self._is_configured
+
+    @property
+    def _is_configured(self) -> bool:
+        """Return True when the asset still exists in the stored config."""
+        return any(
+            str(subentry.data.get("symbol", "")).strip().upper() == self._asset_key
+            for subentry in self._entry.subentries.values()
+            if subentry.subentry_type in (SUBENTRY_TYPE_TRANSACTION, LEGACY_SUBENTRY_TYPE_POSITION)
+        )
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -93,4 +103,6 @@ class DeletePositionButton(PortfolioBaseEntity, ButtonEntity):
         ]
 
         for subentry_id in subentry_ids:
-            self.hass.config_entries.async_remove_subentry(self._entry, subentry_id)
+            result = self.hass.config_entries.async_remove_subentry(self._entry, subentry_id)
+            if inspect.isawaitable(result):
+                await result

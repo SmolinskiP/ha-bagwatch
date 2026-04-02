@@ -6,6 +6,7 @@ import asyncio
 from collections import defaultdict
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+import logging
 import time
 from typing import Any
 
@@ -17,6 +18,8 @@ try:
     import yfinance as yf
 except ImportError:  # pragma: no cover - runtime dependency in Home Assistant
     yf = None
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class MarketDataError(RuntimeError):
@@ -433,7 +436,21 @@ class YahooFinanceClient:
         if cached is not None:
             return cached
 
-        payload = await asyncio.to_thread(self._sync_get_quote_payload, asset, yahoo_symbol)
+        try:
+            payload = await asyncio.to_thread(self._sync_get_quote_payload, asset, yahoo_symbol)
+        except MarketDataError as err:
+            fallback_symbol = self._crypto_fallback_symbol(asset, yahoo_symbol)
+            if fallback_symbol is None or "No Yahoo Finance price returned" not in str(err):
+                raise
+
+            _LOGGER.info(
+                "Yahoo Finance quote for '%s' failed; retrying with crypto fallback symbol '%s'",
+                yahoo_symbol,
+                fallback_symbol,
+            )
+            payload = await asyncio.to_thread(self._sync_get_quote_payload, asset, fallback_symbol)
+            cache_key = ("quote", fallback_symbol)
+
         self._response_cache[cache_key] = (time.monotonic(), payload)
         return payload
 
@@ -639,6 +656,22 @@ class YahooFinanceClient:
                 explicit = cleaned[len(prefix):].strip()
                 return explicit or None
         return cleaned or None
+
+    def _crypto_fallback_symbol(
+        self,
+        asset: AssetConfig,
+        yahoo_symbol: str,
+    ) -> str | None:
+        """Return a best-effort Yahoo crypto symbol fallback when the base lookup fails."""
+        if asset.provider_symbol:
+            return None
+        if asset.asset_type == "crypto":
+            return None
+        if " " in yahoo_symbol or "." in yahoo_symbol or "/" in yahoo_symbol or "=" in yahoo_symbol:
+            return None
+        if yahoo_symbol.endswith("-USD"):
+            return None
+        return f"{yahoo_symbol}-USD"
 
     def _safe_mapping(self, payload: Any) -> dict[str, Any] | None:
         """Return a dict-like payload if one is available."""

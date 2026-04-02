@@ -195,6 +195,23 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
             transaction_count=0,
         )
 
+    def get_configured_assets(self) -> list[AssetConfig]:
+        """Return configured assets even when the latest snapshot could not price them."""
+        try:
+            transactions = self._load_transactions()
+            if transactions:
+                return [bundle.asset for bundle in group_transactions(transactions)]
+
+            legacy_holdings = self._load_legacy_holdings()
+            if legacy_holdings:
+                return [holding.to_asset_config() for holding in legacy_holdings]
+        except PortfolioValidationError as err:
+            _LOGGER.warning("Failed to resolve configured assets for Bagwatch entities: %s", err)
+
+        if self.data is not None:
+            return [position.asset for position in self.data.positions]
+        return []
+
     async def _async_update_data(self) -> PortfolioSnapshot:
         """Fetch the latest data and build a portfolio snapshot."""
         try:
@@ -211,6 +228,14 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
                 quotes = await self._async_fetch_quotes_for_assets(
                     [bundle.asset for bundle in bundles]
                 )
+                bundles = [
+                    bundle for bundle in bundles if bundle.asset.key in quotes
+                ]
+                if not bundles:
+                    _LOGGER.warning(
+                        "No valid asset quotes available for the current Bagwatch transaction ledger"
+                    )
+                    return self._build_empty_snapshot()
                 fx_rates = await self._async_fetch_fx_rates_for_transactions(
                     bundles,
                     quotes,
@@ -225,6 +250,14 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
 
             if legacy_holdings:
                 quotes = await self._async_fetch_quotes_for_holdings(legacy_holdings)
+                legacy_holdings = [
+                    holding for holding in legacy_holdings if holding.key in quotes
+                ]
+                if not legacy_holdings:
+                    _LOGGER.warning(
+                        "No valid asset quotes available for the current Bagwatch legacy holdings"
+                    )
+                    return self._build_empty_snapshot()
                 fx_rates = await self._async_fetch_fx_rates_for_holdings(
                     legacy_holdings,
                     quotes,
@@ -313,11 +346,19 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
         else:
             raise MarketDataError(f"Unsupported provider configured: {self._provider}")
 
-        results = await asyncio.gather(*tasks)
-        return {
-            asset.key: quote
-            for asset, quote in zip(assets, results, strict=True)
-        }
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        quotes: dict[str, MarketQuote] = {}
+        for asset, result in zip(assets, results, strict=True):
+            if isinstance(result, Exception):
+                _LOGGER.warning(
+                    "Skipping asset '%s' because quote fetch failed: %s",
+                    asset.display_name,
+                    result,
+                )
+                continue
+            quotes[asset.key] = result
+
+        return quotes
 
     async def _async_fetch_quotes_for_holdings(
         self,

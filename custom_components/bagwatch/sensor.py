@@ -240,17 +240,16 @@ async def async_setup_entry(
         PortfolioSensor(coordinator, entry, metric) for metric in PORTFOLIO_METRICS
     ]
 
-    if coordinator.data is not None:
-        for position in coordinator.data.positions:
-            for metric in POSITION_METRICS:
-                entities.append(
-                    PositionSensor(
-                        coordinator,
-                        entry,
-                        position.asset.key,
-                        metric,
-                    )
+    for asset in coordinator.get_configured_assets():
+        for metric in POSITION_METRICS:
+            entities.append(
+                PositionSensor(
+                    coordinator,
+                    entry,
+                    asset.key,
+                    metric,
                 )
+            )
 
     async_add_entities(entities)
 
