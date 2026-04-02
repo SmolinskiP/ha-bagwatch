@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Configure Bagwatch",
-        "description": "Set up the market data providers. Bagwatch supports Twelve Data and an experimental Yahoo Finance mode for stocks, ETFs and FX. Crypto can use CoinGecko first and then fall back to the selected primary provider.",
+        "description": "Set up the market data providers. Bagwatch supports Twelve Data and an experimental Yahoo Finance mode for stocks, ETFs and FX. Yahoo Finance is selected by default. Crypto can use the primary provider only, or CoinGecko first and then fall back to the selected primary provider.",
         "data": {
           "portfolio_name": "Portfolio name",
           "provider": "Primary market data provider",
@@ -159,3 +159,4 @@
     }
   }
 }
+

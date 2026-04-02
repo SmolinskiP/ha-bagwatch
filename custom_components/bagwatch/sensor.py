@@ -433,7 +433,7 @@ class PositionSensor(PortfolioBaseEntity):
             return {}
 
         return {
-            ATTR_DATA_SOURCE: "twelve_data",
+            ATTR_DATA_SOURCE: position.quote.exchange or "unknown",
             ATTR_BASE_CURRENCY: self.coordinator.data.base_currency if self.coordinator.data else None,
             ATTR_QUOTE_CURRENCY: position.quote.currency,
             ATTR_PRICE_TO_BASE_RATE: self._round(position.price_to_base_rate, 8),
@@ -447,3 +447,4 @@ class PositionSensor(PortfolioBaseEntity):
             "provider_symbol": position.quote.symbol,
             "asset_type": position.asset.asset_type,
         }
+

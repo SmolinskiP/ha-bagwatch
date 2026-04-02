@@ -33,10 +33,8 @@ from .const import (
     CONF_ASSET_TYPE,
     CONF_BASE_CURRENCY,
     CONF_COINGECKO_API_KEY,
-    CONF_COUNTRY,
     CONF_CRYPTO_PRICE_PROVIDER,
     CONF_CURRENCY,
-    CONF_EXCHANGE,
     CONF_FEES_TOTAL,
     CONF_NAME,
     CONF_PORTFOLIO_NAME,
@@ -343,6 +341,10 @@ class BagwatchConfigFlow(ConfigFlow, domain=DOMAIN):
 
 class BagwatchOptionsFlow(OptionsFlow):
     """Handle Bagwatch options."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Store the config entry used by the options flow."""
+        self.config_entry = config_entry
 
     async def async_step_init(
         self,

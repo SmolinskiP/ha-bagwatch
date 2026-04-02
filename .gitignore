@@ -6,6 +6,8 @@ pytest-cache-files-*/
 .mypy_cache/
 .venv/
 venv/
+.env
+.env.local
 *.pyc
 *.pyo
 *.pyd

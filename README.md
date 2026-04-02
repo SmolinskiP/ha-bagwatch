@@ -80,7 +80,7 @@ Before you start, you need:
 
 - a working Home Assistant instance
 - access to HACS or your Home Assistant `config` directory
-- either a Twelve Data API key or Yahoo Finance selected as the primary provider
+- by default, nothing beyond Home Assistant itself. Yahoo Finance is selected as the primary provider on first setup, and Twelve Data is available if you want an API-key-based provider
 - optionally, a CoinGecko API key for better crypto handling
 
 Bagwatch supports two primary provider modes:
@@ -133,7 +133,7 @@ config/
 
 1. Add the `Bagwatch` integration from `Settings > Devices & services`.
 2. Choose the primary market data provider.
-3. Enter your Twelve Data API key if you selected Twelve Data.
+3. Leave the Twelve Data API key empty if you keep the default Yahoo Finance setup, or enter it if you switch to Twelve Data.
 4. Choose the crypto price strategy.
 5. Optionally enter your CoinGecko API key.
 6. Choose the base currency for the portfolio.
@@ -207,3 +207,4 @@ MIT License. Do whatever you want, just don't blame me when something doesn't wo
 
 If the app helped you and you want to buy me a coffee:
 [☕ Buy me a coffee](https://buymeacoffee.com/smolinskip)
+
