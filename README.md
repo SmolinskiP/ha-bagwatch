@@ -201,6 +201,8 @@ Good dashboard ideas:
 - asset detail cards
 - long-term charts using Home Assistant statistics
 
+See [card_examples.md](./card_examples.md) for concrete Lovelace card examples and a suggested screenshot plan.
+
 It is meant to give you solid raw entities first, so your dashboard can look exactly how you want instead of how some external app decided it should.
 
 <!-- Suggested screenshot: polished dashboard with stats and charts -->
