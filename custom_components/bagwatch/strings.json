@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Configure Bagwatch",
-        "description": "Set up the market data provider. You will add positions after the integration is created.",
+        "description": "Set up the market data provider. You will add transactions after the integration is created.",
         "data": {
           "portfolio_name": "Portfolio name",
           "provider": "Data provider",
@@ -33,85 +33,74 @@
     }
   },
   "config_subentries": {
-    "position": {
-      "entry_type": "Position",
+    "transaction": {
+      "entry_type": "Transaction",
       "abort": {
-        "reconfigure_successful": "Position updated successfully."
+        "reconfigure_successful": "Transaction updated successfully."
       },
       "error": {
-        "invalid_position": "The position data is invalid or incomplete."
+        "invalid_transaction": "The transaction data is invalid or incomplete.",
+        "legacy_positions_present": "Delete the old Bagwatch positions first, then recreate them as transactions."
       },
       "initiate_flow": {
-        "user": "Add position",
-        "reconfigure": "Edit position"
+        "user": "Add transaction",
+        "reconfigure": "Edit transaction"
       },
       "step": {
         "init": {
-          "title": "Add position",
-          "description": "Add one portfolio position with purchase data and optional provider hints.",
+          "title": "Add transaction",
+          "description": "Add one buy or sell transaction. Bagwatch will calculate the current position, average cost and realized P/L from the full transaction history.",
           "data": {
             "symbol": "Symbol",
             "name": "Display name",
             "asset_type": "Asset type",
+            "transaction_type": "Transaction type",
             "quantity": "Quantity",
-            "average_buy_price": "Average buy price",
-            "buy_currency": "Purchase currency",
-            "cost_basis": "Total cost basis",
-            "cost_currency": "Cost basis currency",
-            "cost_basis_base": "Exact cost basis in portfolio currency",
+            "unit_price": "Unit price",
+            "currency": "Trade currency",
+            "trade_date": "Trade date",
             "fees_total": "Fees total",
-            "provider_symbol": "Provider symbol",
-            "exchange": "Exchange hint",
-            "country": "Country hint"
+            "provider_symbol": "Provider symbol"
           },
           "data_description": {
-            "symbol": "User-facing symbol, for example MSFT.US or BTC.",
-            "name": "Optional friendly name used in Home Assistant.",
+            "symbol": "User-facing symbol, for example MSFT.US, PKN.PL or BTC.",
+            "name": "Optional friendly name used for the asset device in Home Assistant.",
             "asset_type": "Choose the asset class for provider mapping.",
-            "quantity": "Position size. Decimals are allowed.",
-            "average_buy_price": "Average unit buy price. Use with purchase currency.",
-            "buy_currency": "Currency for average buy price, for example USD or PLN.",
-            "cost_basis": "Optional total purchase cost for the whole position.",
-            "cost_currency": "Currency for total cost basis.",
-            "cost_basis_base": "Optional exact total cost already converted to the portfolio base currency.",
-            "fees_total": "Optional total fees to add to the position cost basis.",
-            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough.",
-            "exchange": "Optional exchange hint for ambiguous symbols.",
-            "country": "Optional country hint for ambiguous symbols."
+            "transaction_type": "Buy adds to the open position. Sell reduces it and books realized P/L.",
+            "quantity": "Trade size. Decimals are allowed.",
+            "unit_price": "Executed price per one unit.",
+            "currency": "Currency of the executed trade, for example USD or PLN.",
+            "trade_date": "Execution date used to order the transaction history.",
+            "fees_total": "Optional fees for this single trade.",
+            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough."
           }
         },
         "reconfigure": {
-          "title": "Edit position",
-          "description": "Update this portfolio position.",
+          "title": "Edit transaction",
+          "description": "Update one portfolio transaction.",
           "data": {
             "symbol": "Symbol",
             "name": "Display name",
             "asset_type": "Asset type",
+            "transaction_type": "Transaction type",
             "quantity": "Quantity",
-            "average_buy_price": "Average buy price",
-            "buy_currency": "Purchase currency",
-            "cost_basis": "Total cost basis",
-            "cost_currency": "Cost basis currency",
-            "cost_basis_base": "Exact cost basis in portfolio currency",
+            "unit_price": "Unit price",
+            "currency": "Trade currency",
+            "trade_date": "Trade date",
             "fees_total": "Fees total",
-            "provider_symbol": "Provider symbol",
-            "exchange": "Exchange hint",
-            "country": "Country hint"
+            "provider_symbol": "Provider symbol"
           },
           "data_description": {
-            "symbol": "User-facing symbol, for example MSFT.US or BTC.",
-            "name": "Optional friendly name used in Home Assistant.",
+            "symbol": "User-facing symbol, for example MSFT.US, PKN.PL or BTC.",
+            "name": "Optional friendly name used for the asset device in Home Assistant.",
             "asset_type": "Choose the asset class for provider mapping.",
-            "quantity": "Position size. Decimals are allowed.",
-            "average_buy_price": "Average unit buy price. Use with purchase currency.",
-            "buy_currency": "Currency for average buy price, for example USD or PLN.",
-            "cost_basis": "Optional total purchase cost for the whole position.",
-            "cost_currency": "Currency for total cost basis.",
-            "cost_basis_base": "Optional exact total cost already converted to the portfolio base currency.",
-            "fees_total": "Optional total fees to add to the position cost basis.",
-            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough.",
-            "exchange": "Optional exchange hint for ambiguous symbols.",
-            "country": "Optional country hint for ambiguous symbols."
+            "transaction_type": "Buy adds to the open position. Sell reduces it and books realized P/L.",
+            "quantity": "Trade size. Decimals are allowed.",
+            "unit_price": "Executed price per one unit.",
+            "currency": "Currency of the executed trade, for example USD or PLN.",
+            "trade_date": "Execution date used to order the transaction history.",
+            "fees_total": "Optional fees for this single trade.",
+            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough."
           }
         }
       }
@@ -121,7 +110,7 @@
     "step": {
       "init": {
         "title": "Bagwatch options",
-        "description": "Update provider settings. Positions are managed separately from the integration page.",
+        "description": "Update provider settings. Transactions are managed separately from the integration page.",
         "data": {
           "portfolio_name": "Portfolio name",
           "provider": "Data provider",

@@ -1,36 +1,45 @@
 # Home Assistant Bagwatch
 
-Custom integration for Home Assistant that tracks user-managed portfolio positions for stocks, ETFs and crypto.
+Custom integration for Home Assistant that tracks a user-managed portfolio of stocks, ETFs and crypto.
 
-## Current MVP
+## Current direction
 
-This version provides:
+Bagwatch now treats the portfolio as a transaction ledger instead of one static position per symbol.
+
+That means the user:
+
+1. adds the integration and configures the provider
+2. adds individual `buy` and `sell` transactions from the integration page
+3. gets derived position sensors per asset and portfolio-wide totals
+4. can remove an entire position with the `Delete Position` button on the asset device
+
+From that ledger Bagwatch calculates:
+
+- open quantity per asset
+- average cost
+- open cost basis
+- current value
+- unrealized P/L
+- realized P/L from partial sales
+
+The accounting model is deliberately simple for now:
+
+- no FIFO / LIFO lots
+- no dividends yet
+- realized P/L is calculated against the current weighted average cost of the open position history
+
+## Current features
 
 - provider setup through Home Assistant UI
-- positions managed as separate Bagwatch items after integration setup
+- transactions managed as separate Bagwatch items after integration setup
 - no hardcoded holdings
-- total portfolio sensors
-- per-position sensors
+- portfolio sensors for current value, open cost basis, unrealized P/L and realized P/L
+- per-asset sensors for price, quantity, average cost, current value, unrealized P/L and realized P/L
+- per-asset `Delete Position` button that removes all transactions for that symbol
 - one provider implementation on start: Twelve Data
 - support for stocks, ETFs and crypto
 - FX conversion into a chosen base currency
 - configurable refresh interval via `scan_interval`
-
-## How configuration works now
-
-Bagwatch is split into two layers:
-
-- the main integration stores provider settings such as API key, base currency and refresh interval
-- each portfolio position is added separately after setup as its own Bagwatch position
-
-This means the user flow is now:
-
-1. add the Bagwatch integration
-2. configure provider settings
-3. open the integration and add positions one by one
-4. each position stores symbol, quantity, buy price and optional provider hints
-
-This is the intended direction for the integration because positions are not part of one huge blob anymore.
 
 ## HACS installation
 
@@ -43,7 +52,6 @@ Requirements from current HACS docs:
 - the repository must contain `hacs.json`
 - the integration files must live under `custom_components/bagwatch/`
 - integration repositories must provide `documentation`, `issue_tracker`, `codeowners`, `name`, and `version` in `manifest.json`
-- integration repositories should provide brand assets
 
 Official HACS docs:
 
@@ -60,7 +68,22 @@ Official HACS docs:
 6. Install `Bagwatch` from HACS.
 7. Restart Home Assistant.
 8. Add the integration from `Settings > Devices & services`.
-9. Add positions from the Bagwatch integration page.
+9. Add transactions from the Bagwatch integration page.
+
+## Transaction fields
+
+Each transaction stores:
+
+- `symbol`: user-facing symbol such as `MSFT.US`, `PKN.PL` or `BTC`
+- `name`: optional display name for the asset device
+- `asset_type`: `stock`, `etf`, or `crypto`
+- `transaction_type`: `buy` or `sell`
+- `quantity`: trade size
+- `unit_price`: executed price per one unit
+- `currency`: transaction currency
+- `trade_date`: date used to order the ledger
+- `fees_total`: optional fees for that trade
+- `provider_symbol`: optional exact provider ticker when the display symbol differs from the data provider symbol
 
 ## Provider choice
 
@@ -78,43 +101,16 @@ Official sources:
 - Pricing: https://twelvedata.com/pricing
 - Trial / free-plan notes: https://support.twelvedata.com/en/articles/5335783-trial
 
-Important limitation of the free plan according to Twelve Data's official pricing/support pages:
-
-- Basic plan is free
-- Basic includes `8 API credits per minute` and `800 per day`
-- Basic includes real-time US equities and ETFs, real-time forex, and real-time crypto
-- Basic is limited to `3 markets`
-- broader international coverage is part of higher tiers
-
-Practical implication:
-
-- US stocks and crypto are a good fit for the free tier
-- symbols from markets such as Poland may work only as trial symbols or may require a paid plan depending on coverage
-- because of that, the integration supports `provider_symbol`, `exchange`, and `country` hints
-
-## Position fields
-
-Each position can store:
-
-- `symbol`: user-facing symbol such as `MSFT.US`, `PKN.PL` or `BTC`
-- `name`: optional display name
-- `asset_type`: for example `stock`, `etf`, `crypto`
-- `quantity`: position size
-- `average_buy_price`: average buy price per unit
-- `buy_currency`: currency for `average_buy_price`
-- `cost_basis`: optional total position cost instead of `quantity * average_buy_price`
-- `cost_currency`: currency for `cost_basis`
-- `cost_basis_base`: optional exact total cost already expressed in portfolio base currency
-- `fees_total`: optional fees added to cost basis
-- `provider_symbol`: optional exact provider symbol when user-facing symbol differs
-- `exchange`: optional provider hint
-- `country`: optional provider hint
-
 ## FX caveat
 
-Exact P/L in the portfolio base currency is only truly exact when one of these is provided:
+If the portfolio base currency differs from the trade currency, Bagwatch currently converts historical transactions using currently fetched FX rates.
 
-- `cost_basis_base`
-- cost data already stored in the same base currency
+That means:
 
-If the user provides only purchase data in another currency, the integration converts cost using current FX. In that case the entity attribute `is_fx_estimate` is set to `true`.
+- current market value is correct in the current base-currency view
+- historical cost basis and realized P/L can be FX-estimated instead of truly historical
+- the entity attribute `is_fx_estimate` is set when this approximation is in play
+
+## Legacy note
+
+Older Bagwatch test versions stored one aggregated position per symbol. The new transaction-ledger version should not be mixed with those old position subentries in the same integration entry.

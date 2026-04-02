@@ -16,14 +16,16 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     ATTR_AS_OF,
+    ATTR_AVERAGE_COST_BASE,
     ATTR_BASE_CURRENCY,
-    ATTR_COST_CURRENCY,
-    ATTR_COST_TO_BASE_RATE,
     ATTR_DATA_SOURCE,
+    ATTR_IS_CLOSED,
     ATTR_IS_FX_ESTIMATE,
+    ATTR_LAST_TRADE_DATE,
     ATTR_POSITION_COUNT,
     ATTR_PRICE_TO_BASE_RATE,
     ATTR_QUOTE_CURRENCY,
+    ATTR_TRANSACTION_COUNT,
     DOMAIN,
 )
 from .coordinator import BagwatchCoordinator
@@ -65,7 +67,7 @@ PORTFOLIO_METRICS: tuple[PortfolioMetric, ...] = (
     ),
     PortfolioMetric(
         key="cost_basis",
-        name="Cost Basis",
+        name="Open Cost Basis",
         icon="mdi:cash-multiple",
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -85,9 +87,28 @@ PORTFOLIO_METRICS: tuple[PortfolioMetric, ...] = (
         unit=PERCENTAGE,
     ),
     PortfolioMetric(
+        key="realized_gain",
+        name="Realized Gain",
+        icon="mdi:cash-check",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    PortfolioMetric(
+        key="realized_gain_pct",
+        name="Realized Gain Percentage",
+        icon="mdi:percent-circle",
+        state_class=SensorStateClass.MEASUREMENT,
+        unit=PERCENTAGE,
+    ),
+    PortfolioMetric(
         key="positions_count",
-        name="Positions Count",
+        name="Open Positions Count",
         icon="mdi:format-list-bulleted",
+    ),
+    PortfolioMetric(
+        key="transactions_count",
+        name="Transactions Count",
+        icon="mdi:swap-horizontal",
     ),
 )
 
@@ -107,6 +128,14 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
     ),
     PositionMetric(
+        key="average_cost",
+        name="Average Cost",
+        icon="mdi:scale-balance",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.MEASUREMENT,
+        monetary_unit="base",
+    ),
+    PositionMetric(
         key="market_value",
         name="Current Value",
         icon="mdi:chart-line",
@@ -116,7 +145,7 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
     ),
     PositionMetric(
         key="cost_basis",
-        name="Cost Basis",
+        name="Open Cost Basis",
         icon="mdi:cash",
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -136,6 +165,26 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
         icon="mdi:percent",
         state_class=SensorStateClass.MEASUREMENT,
         unit=PERCENTAGE,
+    ),
+    PositionMetric(
+        key="realized_gain",
+        name="Realized Gain",
+        icon="mdi:cash-plus",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.MEASUREMENT,
+        monetary_unit="base",
+    ),
+    PositionMetric(
+        key="realized_gain_pct",
+        name="Realized Gain Percentage",
+        icon="mdi:percent-box",
+        state_class=SensorStateClass.MEASUREMENT,
+        unit=PERCENTAGE,
+    ),
+    PositionMetric(
+        key="transaction_count",
+        name="Transactions Count",
+        icon="mdi:timeline-outline",
     ),
 )
 
@@ -158,7 +207,7 @@ async def async_setup_entry(
                     PositionSensor(
                         coordinator,
                         entry,
-                        position.holding.key,
+                        position.asset.key,
                         metric,
                     )
                 )
@@ -247,8 +296,14 @@ class PortfolioSensor(PortfolioBaseEntity):
             return self._round(snapshot.unrealized_gain_base)
         if self._metric.key == "unrealized_gain_pct":
             return self._round(snapshot.unrealized_gain_pct, 2)
+        if self._metric.key == "realized_gain":
+            return self._round(snapshot.realized_gain_base)
+        if self._metric.key == "realized_gain_pct":
+            return self._round(snapshot.realized_gain_pct, 2)
         if self._metric.key == "positions_count":
-            return len(snapshot.positions)
+            return snapshot.open_positions_count
+        if self._metric.key == "transactions_count":
+            return snapshot.transaction_count
         return None
 
     @property
@@ -260,26 +315,27 @@ class PortfolioSensor(PortfolioBaseEntity):
 
         return {
             ATTR_BASE_CURRENCY: snapshot.base_currency,
-            ATTR_POSITION_COUNT: len(snapshot.positions),
+            ATTR_POSITION_COUNT: snapshot.open_positions_count,
+            ATTR_TRANSACTION_COUNT: snapshot.transaction_count,
             ATTR_AS_OF: snapshot.updated_at.isoformat(),
         }
 
 
 class PositionSensor(PortfolioBaseEntity):
-    """A sensor for a single portfolio position."""
+    """A sensor for a single tracked asset."""
 
     def __init__(
         self,
         coordinator: BagwatchCoordinator,
         entry: ConfigEntry,
-        holding_key: str,
+        asset_key: str,
         metric: PositionMetric,
     ) -> None:
         """Initialize the position sensor."""
         super().__init__(coordinator, entry)
-        self._holding_key = holding_key
+        self._asset_key = asset_key
         self._metric = metric
-        self._attr_unique_id = f"{entry.entry_id}_{holding_key}_{metric.key}"
+        self._attr_unique_id = f"{entry.entry_id}_{asset_key}_{metric.key}"
         self._attr_icon = metric.icon
 
     @property
@@ -289,7 +345,7 @@ class PositionSensor(PortfolioBaseEntity):
             return None
 
         for position in self.coordinator.data.positions:
-            if position.holding.key == self._holding_key:
+            if position.asset.key == self._asset_key:
                 return position
         return None
 
@@ -307,10 +363,10 @@ class PositionSensor(PortfolioBaseEntity):
     def device_info(self) -> DeviceInfo:
         """Return device metadata for the position."""
         position = self._position
-        display_name = position.holding.display_name if position else self._holding_key
-        model = position.holding.asset_type if position else "Position"
+        display_name = position.asset.display_name if position else self._asset_key
+        model = position.asset.asset_type if position else "Position"
         return DeviceInfo(
-            identifiers={(DOMAIN, f"{self._entry.entry_id}_{self._holding_key}")},
+            identifiers={(DOMAIN, f"{self._entry.entry_id}_{self._asset_key}")},
             name=display_name,
             manufacturer="Bagwatch",
             model=model,
@@ -341,7 +397,7 @@ class PositionSensor(PortfolioBaseEntity):
         return self._metric.state_class
 
     @property
-    def native_value(self) -> float | None:
+    def native_value(self) -> float | int | None:
         """Return the current sensor state."""
         position = self._position
         if position is None:
@@ -350,7 +406,9 @@ class PositionSensor(PortfolioBaseEntity):
         if self._metric.key == "price":
             return self._round(position.quote.price, 6)
         if self._metric.key == "quantity":
-            return self._round(position.holding.quantity, 8)
+            return self._round(position.quantity, 8)
+        if self._metric.key == "average_cost":
+            return self._round(position.average_cost_base)
         if self._metric.key == "market_value":
             return self._round(position.market_value_base)
         if self._metric.key == "cost_basis":
@@ -359,6 +417,12 @@ class PositionSensor(PortfolioBaseEntity):
             return self._round(position.unrealized_gain_base)
         if self._metric.key == "unrealized_gain_pct":
             return self._round(position.unrealized_gain_pct, 2)
+        if self._metric.key == "realized_gain":
+            return self._round(position.realized_gain_base)
+        if self._metric.key == "realized_gain_pct":
+            return self._round(position.realized_gain_pct, 2)
+        if self._metric.key == "transaction_count":
+            return position.transaction_count
         return None
 
     @property
@@ -372,18 +436,14 @@ class PositionSensor(PortfolioBaseEntity):
             ATTR_DATA_SOURCE: "twelve_data",
             ATTR_BASE_CURRENCY: self.coordinator.data.base_currency if self.coordinator.data else None,
             ATTR_QUOTE_CURRENCY: position.quote.currency,
-            ATTR_COST_CURRENCY: position.holding.cost_currency
-            or position.holding.buy_currency
-            or position.quote.currency,
             ATTR_PRICE_TO_BASE_RATE: self._round(position.price_to_base_rate, 8),
-            ATTR_COST_TO_BASE_RATE: self._round(position.cost_to_base_rate, 8),
             ATTR_IS_FX_ESTIMATE: position.is_fx_estimate,
             ATTR_AS_OF: position.quote.as_of,
-            "symbol": position.holding.symbol,
+            ATTR_TRANSACTION_COUNT: position.transaction_count,
+            ATTR_AVERAGE_COST_BASE: self._round(position.average_cost_base, 8),
+            ATTR_LAST_TRADE_DATE: position.last_trade_date.isoformat(),
+            ATTR_IS_CLOSED: position.is_closed,
+            "symbol": position.asset.symbol,
             "provider_symbol": position.quote.symbol,
-            "exchange": position.quote.exchange,
-            "asset_type": position.holding.asset_type,
+            "asset_type": position.asset.asset_type,
         }
-
-
-
