@@ -1,116 +1,169 @@
-# Home Assistant Bagwatch
+# Bagwatch for Home Assistant
 
-Custom integration for Home Assistant that tracks a user-managed portfolio of stocks, ETFs and crypto.
+Bagwatch is a Home Assistant integration for tracking stocks, ETFs, and crypto without turning your setup into a spreadsheet graveyard.
 
-## Current direction
+It gives you portfolio stats, per-asset sensors, transaction-based tracking, and clean data you can drop straight into dashboards, cards, automations, and statistics views.
 
-Bagwatch now treats the portfolio as a transaction ledger instead of one static position per symbol.
+If you already live inside Home Assistant, Bagwatch lets your portfolio live there too.
 
-That means the user:
+<!-- Suggested screenshot: hero dashboard with portfolio summary and a few asset cards -->
 
-1. adds the integration and configures the provider
-2. adds individual `buy` and `sell` transactions from the integration page
-3. gets derived position sensors per asset and portfolio-wide totals
-4. can remove an entire position with the `Delete Position` button on the asset device
+## Why Bagwatch
 
-From that ledger Bagwatch calculates:
+Most portfolio tools are built as separate apps.
 
-- open quantity per asset
+Bagwatch is built for people who want portfolio tracking inside Home Assistant, alongside everything else they already monitor.
+
+Use it to:
+
+- track total portfolio value
+- monitor open cost basis
+- see unrealized and realized gain / loss
+- follow each asset separately
+- build custom dashboards with native Home Assistant entities
+- manage buys and sells without recalculating average cost by hand
+
+## What it gives you
+
+After setup, Bagwatch creates portfolio-level sensors such as:
+
+- current portfolio value
+- open cost basis
+- unrealized gain / loss
+- realized gain / loss
+- open positions count
+- transactions count
+
+Each tracked asset also gets its own entities, including:
+
+- current price
+- quantity
+- average cost
+- current value
+- unrealized gain / loss
+- realized gain / loss
+
+This makes it easy to build anything from a simple summary card to a full-screen finance dashboard.
+
+<!-- Suggested screenshot: asset device page with sensors like current price, quantity, unrealized P/L -->
+
+## How it works
+
+Bagwatch uses a transaction-based model.
+
+You add buy and sell transactions, and Bagwatch calculates the rest from that history:
+
+- open quantity
 - average cost
 - open cost basis
-- current value
-- unrealized P/L
-- realized P/L from partial sales
+- unrealized profit / loss
+- realized profit / loss
 
-The accounting model is deliberately simple for now:
+That means the portfolio behaves like something you actually manage, not just a static list of manually edited positions.
 
-- no FIFO / LIFO lots
-- no dividends yet
-- realized P/L is calculated against the current weighted average cost of the open position history
+## Requirements
 
-## Current features
+Before you start, you need:
 
-- provider setup through Home Assistant UI
-- transactions managed as separate Bagwatch items after integration setup
-- no hardcoded holdings
-- portfolio sensors for current value, open cost basis, unrealized P/L and realized P/L
-- per-asset sensors for price, quantity, average cost, current value, unrealized P/L and realized P/L
-- per-asset `Delete Position` button that removes all transactions for that symbol
-- one provider implementation on start: Twelve Data
-- support for stocks, ETFs and crypto
-- FX conversion into a chosen base currency
-- configurable refresh interval via `scan_interval`
+- a working Home Assistant instance
+- access to HACS or your Home Assistant `config` directory
+- a Twelve Data API key
 
-## HACS installation
+Bagwatch currently uses Twelve Data for market prices, so the API key is required during setup.
 
-This repository is prepared for installation as a HACS custom repository.
+Get your key here:
 
-Requirements from current HACS docs:
+- https://twelvedata.com/
 
-- the repository must be public on GitHub
-- the repository must contain `README.md`
-- the repository must contain `hacs.json`
-- the integration files must live under `custom_components/bagwatch/`
-- integration repositories must provide `documentation`, `issue_tracker`, `codeowners`, `name`, and `version` in `manifest.json`
+## Installation
 
-Official HACS docs:
+### Option 1: HACS
 
-- Custom repositories: https://www.hacs.xyz/docs/faq/custom_repositories/
-- Integration repository requirements: https://www.hacs.xyz/docs/publish/integration/
+1. Open HACS in Home Assistant.
+2. Open `Custom repositories`.
+3. Add this repository URL.
+4. Select repository type `Integration`.
+5. Install `Bagwatch`.
+6. Restart Home Assistant.
 
-### Steps
+After the restart, go to `Settings > Devices & services` and add the integration.
 
-1. Push this repository to a public GitHub repository.
-2. In Home Assistant, open HACS.
-3. Open the three-dot menu and choose `Custom repositories`.
-4. Paste the GitHub repository URL.
-5. Select repository type `Integration`.
-6. Install `Bagwatch` from HACS.
-7. Restart Home Assistant.
-8. Add the integration from `Settings > Devices & services`.
-9. Add transactions from the Bagwatch integration page.
+<!-- Suggested screenshot: HACS custom repository dialog and Bagwatch install page -->
 
-## Transaction fields
+### Option 2: Manual installation
 
-Each transaction stores:
+1. Download this repository.
+2. Copy `custom_components/bagwatch` into your Home Assistant `config/custom_components` directory.
+3. Restart Home Assistant.
+4. Go to `Settings > Devices & services`.
+5. Add `Bagwatch`.
 
-- `symbol`: user-facing symbol such as `MSFT.US`, `PKN.PL` or `BTC`
-- `name`: optional display name for the asset device
-- `asset_type`: `stock`, `etf`, or `crypto`
-- `transaction_type`: `buy` or `sell`
-- `quantity`: trade size
-- `unit_price`: executed price per one unit
-- `currency`: transaction currency
-- `trade_date`: date used to order the ledger
-- `fees_total`: optional fees for that trade
-- `provider_symbol`: optional exact provider ticker when the display symbol differs from the data provider symbol
+Expected structure:
 
-## Provider choice
+```text
+config/
+  custom_components/
+    bagwatch/
+      __init__.py
+      manifest.json
+      ...
+```
 
-The integration currently starts with Twelve Data because its official docs and pricing cover:
+## Configuration
+
+1. Add the `Bagwatch` integration from `Settings > Devices & services`.
+2. Enter your Twelve Data API key.
+3. Choose the base currency for the portfolio.
+4. Set the refresh interval.
+5. Finish the integration setup.
+6. Open the integration and add transactions one by one.
+
+Each transaction includes:
+
+- symbol
+- asset type
+- transaction type
+- quantity
+- unit price
+- trade currency
+- trade date
+- optional fees
+- optional display name
+
+Once transactions are added, Bagwatch builds the current portfolio state automatically.
+
+<!-- Suggested screenshot: add transaction flow -->
+
+## Supported assets
+
+Bagwatch currently supports:
 
 - stocks
 - ETFs
 - crypto
-- forex / exchange rates
-- free API keys
 
-Official sources:
+## Built for dashboards
 
-- Docs: https://twelvedata.com/docs
-- Pricing: https://twelvedata.com/pricing
-- Trial / free-plan notes: https://support.twelvedata.com/en/articles/5335783-trial
+Bagwatch is useful on its own, but it gets much better once you put it on a dashboard.
 
-## FX caveat
+Good dashboard ideas:
 
-If the portfolio base currency differs from the trade currency, Bagwatch currently converts historical transactions using currently fetched FX rates.
+- portfolio summary cards
+- current allocation by asset
+- winners and losers
+- asset detail cards
+- long-term charts using Home Assistant statistics
 
-That means:
+It is meant to give you solid raw entities first, so your dashboard can look exactly how you want instead of how some external app decided it should.
 
-- current market value is correct in the current base-currency view
-- historical cost basis and realized P/L can be FX-estimated instead of truly historical
-- the entity attribute `is_fx_estimate` is set when this approximation is in play
+<!-- Suggested screenshot: polished dashboard with stats and charts -->
 
-## Legacy note
+## Notes
 
-Older Bagwatch test versions stored one aggregated position per symbol. The new transaction-ledger version should not be mixed with those old position subentries in the same integration entry.
+- Bagwatch is focused on practical portfolio tracking inside Home Assistant.
+- A tracked asset can be removed using the `Delete Position` action on the asset device.
+- The current accounting model is intentionally simple and useful: transaction-based, without turning the integration into accounting software.
+
+## Support the project
+
+If Bagwatch is useful to you and you want to support future work, GitHub funding links are enabled for the repository.

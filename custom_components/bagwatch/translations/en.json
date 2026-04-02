@@ -47,6 +47,34 @@
         "reconfigure": "Edit transaction"
       },
       "step": {
+        "user": {
+          "title": "Add transaction",
+          "description": "Add one buy or sell transaction. Bagwatch will calculate the current position, average cost and realized P/L from the full transaction history.",
+          "data": {
+            "symbol": "Symbol",
+            "name": "Display name",
+            "asset_type": "Asset type",
+            "transaction_type": "Transaction type",
+            "quantity": "Quantity",
+            "unit_price": "Unit price",
+            "currency": "Trade currency",
+            "trade_date": "Trade date",
+            "fees_total": "Fees total",
+            "provider_symbol": "Provider symbol"
+          },
+          "data_description": {
+            "symbol": "User-facing symbol, for example MSFT.US, PKN.PL or BTC.",
+            "name": "Optional friendly name used for the asset device in Home Assistant.",
+            "asset_type": "Choose the asset class for provider mapping.",
+            "transaction_type": "Buy adds to the open position. Sell reduces it and books realized P/L.",
+            "quantity": "Trade size. Decimals are allowed.",
+            "unit_price": "Executed price per one unit.",
+            "currency": "Currency of the executed trade, for example USD or PLN.",
+            "trade_date": "Execution date used to order the transaction history.",
+            "fees_total": "Optional fees for this single trade.",
+            "provider_symbol": "Optional exact provider ticker when the user symbol is not enough."
+          }
+        },
         "init": {
           "title": "Add transaction",
           "description": "Add one buy or sell transaction. Bagwatch will calculate the current position, average cost and realized P/L from the full transaction history.",
