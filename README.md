@@ -1,5 +1,7 @@
 # Bagwatch for Home Assistant
 
+<img width="1904" height="1066" alt="Showcase" src="https://github.com/user-attachments/assets/f5155644-fabd-4e70-97ae-408cf509ed14" />
+
 Bagwatch is a Home Assistant integration for tracking stocks, ETFs, and crypto without turning your setup into a spreadsheet graveyard.
 
 It gives you portfolio stats, per-asset entities, transaction-based tracking, and clean data you can drop straight into dashboards, cards, automations, and statistics views.
