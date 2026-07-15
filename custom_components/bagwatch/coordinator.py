@@ -41,6 +41,7 @@ from .models import (
     build_portfolio_snapshot_from_holdings,
     build_portfolio_snapshot_from_transactions,
     group_transactions,
+    major_currency,
     parse_holdings_data,
     parse_holdings_text,
     parse_transactions_data,
@@ -443,6 +444,25 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
         target_currency: str,
     ) -> Decimal:
         """Fetch FX using the selected primary provider."""
+        # Providers only quote major currencies, so minor-unit codes such as
+        # GBX (pence) are converted through their major unit, e.g.
+        # GBX -> USD = (GBP -> USD) / 100.
+        source_major, source_scale = major_currency(source_currency)
+        target_major, target_scale = major_currency(target_currency)
+        major_rate = await self._async_get_major_exchange_rate(
+            source_major,
+            target_major,
+        )
+        return major_rate * target_scale / source_scale
+
+    async def _async_get_major_exchange_rate(
+        self,
+        source_currency: str,
+        target_currency: str,
+    ) -> Decimal:
+        """Fetch an FX rate for a major-currency pair."""
+        if source_currency == target_currency:
+            return Decimal("1")
         if self._provider == PROVIDER_TWELVE_DATA:
             return await self._twelve_data_client.async_get_exchange_rate(
                 source_currency,

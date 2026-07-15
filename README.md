@@ -177,6 +177,12 @@ Provider symbol tips:
 - use `yf:PKN.WA` or `yahoo:BTC-USD` for an exact Yahoo Finance symbol
 - use an exact provider symbol when the user-facing symbol is ambiguous
 
+Pence and other minor units:
+
+- London-listed stocks are quoted in pence (`GBp`) by the market data providers; Bagwatch converts those quotes to pounds (`GBP`) automatically
+- enter `GBX` as the trade currency when your broker statement shows prices in pence, and the amounts are converted to pounds for all calculations
+- `GBX` also works as the portfolio base currency if you prefer portfolio values in pence
+
 Once transactions are added, Bagwatch builds the current portfolio state automatically.
 
 <!-- Suggested screenshot: add transaction flow -->

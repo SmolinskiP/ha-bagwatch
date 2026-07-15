@@ -12,7 +12,7 @@ from typing import Any
 
 from aiohttp import ClientError, ClientSession
 
-from .models import AssetConfig, MarketQuote, ProviderQuery
+from .models import AssetConfig, MarketQuote, ProviderQuery, major_currency
 
 try:
     import yfinance as yf
@@ -64,7 +64,17 @@ class TwelveDataClient:
                 f"Invalid price returned for symbol '{query.symbol}': {raw_price!r}"
             ) from err
 
-        currency = str(payload.get("currency") or "USD").upper()
+        currency, minor_unit_scale = major_currency(
+            str(payload.get("currency") or "USD")
+        )
+        previous_close = self._optional_decimal(
+            payload.get("previous_close") or payload.get("previousClose")
+        )
+        if minor_unit_scale != 1:
+            price /= minor_unit_scale
+            if previous_close is not None:
+                previous_close /= minor_unit_scale
+
         return MarketQuote(
             symbol=query.symbol,
             price=price,
@@ -72,9 +82,7 @@ class TwelveDataClient:
             exchange=payload.get("exchange"),
             asset_type=payload.get("type"),
             as_of=payload.get("datetime"),
-            previous_close=self._optional_decimal(
-                payload.get("previous_close") or payload.get("previousClose")
-            ),
+            previous_close=previous_close,
             volume=self._optional_int(payload.get("volume")),
             market_cap=self._optional_decimal(
                 payload.get("market_cap") or payload.get("marketCap")
@@ -573,10 +581,16 @@ class YahooFinanceClient:
             info.get("trailingAnnualDividendYield"),
         )
 
+        currency, minor_unit_scale = major_currency(currency)
+        if minor_unit_scale != 1:
+            price /= minor_unit_scale
+            if previous_close is not None:
+                previous_close /= minor_unit_scale
+
         return MarketQuote(
             symbol=yahoo_symbol,
             price=price,
-            currency=currency.upper(),
+            currency=currency,
             exchange=exchange or "Yahoo Finance",
             asset_type=asset_type,
             as_of=as_of,

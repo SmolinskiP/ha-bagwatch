@@ -18,6 +18,7 @@ SPEC.loader.exec_module(MODELS)
 MarketQuote = MODELS.MarketQuote
 PortfolioValidationError = MODELS.PortfolioValidationError
 group_transactions = MODELS.group_transactions
+major_currency = MODELS.major_currency
 parse_holdings_text = MODELS.parse_holdings_text
 parse_transactions_data = MODELS.parse_transactions_data
 build_portfolio_snapshot = MODELS.build_portfolio_snapshot
@@ -176,6 +177,56 @@ def test_build_portfolio_snapshot_from_transactions_converts_fx() -> None:
     assert snapshot.market_value_base == Decimal("2200")
     assert snapshot.cost_basis_base == Decimal("2000")
     assert snapshot.unrealized_gain_base == Decimal("200")
+
+
+def test_major_currency_resolves_pence_codes() -> None:
+    """Pence codes should map to pounds with a 100x scale."""
+    assert major_currency("GBp") == ("GBP", Decimal("100"))
+    assert major_currency("GBX") == ("GBP", Decimal("100"))
+    assert major_currency("gbx") == ("GBP", Decimal("100"))
+    assert major_currency("GBP") == ("GBP", Decimal("1"))
+    assert major_currency("gbp") == ("GBP", Decimal("1"))
+    assert major_currency("usd") == ("USD", Decimal("1"))
+    assert major_currency("ZAc") == ("ZAR", Decimal("100"))
+
+
+def test_build_portfolio_snapshot_from_transactions_supports_pence_trades() -> None:
+    """Trades entered in pence (GBX) should convert into the base currency."""
+    transactions = parse_transactions_data(
+        [
+            {
+                "symbol": "VOD.L",
+                "asset_type": "stock",
+                "transaction_type": "buy",
+                "quantity": "100",
+                "unit_price": "70",
+                "currency": "GBX",
+                "trade_date": "2026-01-10",
+                "_order_index": 0,
+            }
+        ]
+    )
+
+    bundles = group_transactions(transactions)
+    quotes = {
+        "VOD.L": MarketQuote(symbol="VOD.L", price=Decimal("0.80"), currency="GBP")
+    }
+    fx_rates = {
+        ("GBX", "GBP"): Decimal("0.01"),
+        ("GBP", "GBP"): Decimal("1"),
+    }
+
+    snapshot = build_portfolio_snapshot_from_transactions(
+        name="Pence Portfolio",
+        base_currency="GBP",
+        bundles=bundles,
+        quotes=quotes,
+        fx_rates=fx_rates,
+    )
+
+    assert snapshot.market_value_base == Decimal("80")
+    assert snapshot.cost_basis_base == Decimal("70")
+    assert snapshot.unrealized_gain_base == Decimal("10")
 
 
 def test_build_portfolio_snapshot_legacy_holdings_still_work() -> None:

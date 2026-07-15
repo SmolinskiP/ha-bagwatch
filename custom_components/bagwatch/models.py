@@ -52,6 +52,34 @@ def _normalize_currency(value: str | None) -> str | None:
     return normalized or None
 
 
+# Currency codes quoted in minor units, mapped to the major unit and
+# the number of minor units per major unit.
+_MINOR_UNIT_CURRENCIES: dict[str, tuple[str, Decimal]] = {
+    "GBX": ("GBP", Decimal("100")),  # pence sterling (LSE convention)
+    "ZAC": ("ZAR", Decimal("100")),  # South African cents
+    "ILA": ("ILS", Decimal("100")),  # Israeli agorot
+}
+
+
+def major_currency(currency: str) -> tuple[str, Decimal]:
+    """Resolve a currency code to its major unit and the minor-unit scale.
+
+    Providers quote some listings in minor units, e.g. Yahoo Finance returns
+    'GBp' (pence) for London-listed stocks. Returns a tuple of the major
+    currency code and how many minor units make up one major unit, e.g.
+    ('GBP', 100) for 'GBp'/'GBX' and ('USD', 1) for 'USD'.
+    """
+    raw = currency.strip()
+    if raw in ("GBp", "GBX"):
+        return _MINOR_UNIT_CURRENCIES["GBX"]
+    upper = raw.upper()
+    if upper == "GBP":
+        # 'GBp' is pence but 'GBP'/'gbp' is pounds; only the exact-case
+        # provider spelling above may map to pence.
+        return "GBP", Decimal("1")
+    return _MINOR_UNIT_CURRENCIES.get(upper, (upper, Decimal("1")))
+
+
 def _normalize_asset_type(value: str | None) -> str:
     """Normalize the asset type."""
     if value is None:

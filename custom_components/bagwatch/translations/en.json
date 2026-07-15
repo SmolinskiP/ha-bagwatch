@@ -73,7 +73,7 @@
             "transaction_type": "Buy adds to the open position. Sell reduces it and books realized P/L.",
             "quantity": "Trade size. Decimals are allowed.",
             "unit_price": "Executed price per one unit.",
-            "currency": "Currency of the executed trade, for example USD or PLN.",
+            "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
@@ -101,7 +101,7 @@
             "transaction_type": "Buy adds to the open position. Sell reduces it and books realized P/L.",
             "quantity": "Trade size. Decimals are allowed.",
             "unit_price": "Executed price per one unit.",
-            "currency": "Currency of the executed trade, for example USD or PLN.",
+            "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
@@ -129,7 +129,7 @@
             "transaction_type": "Buy adds to the open position. Sell reduces it and books realized P/L.",
             "quantity": "Trade size. Decimals are allowed.",
             "unit_price": "Executed price per one unit.",
-            "currency": "Currency of the executed trade, for example USD or PLN.",
+            "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
