@@ -24,6 +24,7 @@ from .const import (
     ATTR_IS_FX_ESTIMATE,
     ATTR_LAST_TRADE_DATE,
     ATTR_MARKET_CAP,
+    ATTR_NATIVE_PRICE,
     ATTR_POSITION_COUNT,
     ATTR_PREVIOUS_CLOSE,
     ATTR_PRICE_TO_BASE_RATE,
@@ -123,7 +124,7 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
         icon="mdi:currency-usd",
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.MEASUREMENT,
-        monetary_unit="quote",
+        monetary_unit="base",
     ),
     PositionMetric(
         key="quantity",
@@ -196,7 +197,7 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
         icon="mdi:chart-line-variant",
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.MEASUREMENT,
-        monetary_unit="quote",
+        monetary_unit="base",
     ),
     PositionMetric(
         key="daily_change_pct",
@@ -217,7 +218,7 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
         icon="mdi:office-building",
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.MEASUREMENT,
-        monetary_unit="quote",
+        monetary_unit="base",
     ),
     PositionMetric(
         key="dividend_yield",
@@ -443,7 +444,7 @@ class PositionSensor(PortfolioBaseEntity):
             return None
 
         if self._metric.key == "price":
-            return self._round(position.quote.price, 6)
+            return self._round(position.current_price_base, 6)
         if self._metric.key == "quantity":
             return self._round(position.quantity, 8)
         if self._metric.key == "average_cost":
@@ -465,7 +466,11 @@ class PositionSensor(PortfolioBaseEntity):
         if self._metric.key == "daily_change":
             if position.quote.previous_close is None:
                 return None
-            return self._round(position.quote.price - position.quote.previous_close, 6)
+            return self._round(
+                (position.quote.price - position.quote.previous_close)
+                * position.price_to_base_rate,
+                6,
+            )
         if self._metric.key == "daily_change_pct":
             if position.quote.previous_close in (None, Decimal("0")):
                 return None
@@ -477,7 +482,9 @@ class PositionSensor(PortfolioBaseEntity):
         if self._metric.key == "volume":
             return position.quote.volume
         if self._metric.key == "market_cap":
-            return self._round(position.quote.market_cap, 2)
+            if position.quote.market_cap is None:
+                return None
+            return self._round(position.quote.market_cap * position.price_to_base_rate, 2)
         if self._metric.key == "dividend_yield":
             return self._round(position.quote.dividend_yield, 2)
         return None
@@ -493,6 +500,7 @@ class PositionSensor(PortfolioBaseEntity):
             ATTR_DATA_SOURCE: position.quote.exchange or "unknown",
             ATTR_BASE_CURRENCY: self.coordinator.data.base_currency if self.coordinator.data else None,
             ATTR_QUOTE_CURRENCY: position.quote.currency,
+            ATTR_NATIVE_PRICE: self._round(position.quote.price, 6),
             ATTR_PRICE_TO_BASE_RATE: self._round(position.price_to_base_rate, 8),
             ATTR_IS_FX_ESTIMATE: position.is_fx_estimate,
             ATTR_AS_OF: position.quote.as_of,
