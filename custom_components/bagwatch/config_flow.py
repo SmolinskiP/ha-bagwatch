@@ -336,15 +336,14 @@ class BagwatchConfigFlow(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry: ConfigEntry):
         """Return the options flow handler."""
-        return BagwatchOptionsFlow(config_entry)
+        # The OptionsFlow base class provides self.config_entry since
+        # HA 2024.11; assigning it manually raises on HA 2025.12+ and
+        # breaks loading the options dialog with a 500 error.
+        return BagwatchOptionsFlow()
 
 
 class BagwatchOptionsFlow(OptionsFlow):
     """Handle Bagwatch options."""
-
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Store the config entry used by the options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self,

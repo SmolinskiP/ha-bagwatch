@@ -1,5 +1,5 @@
 {
   "name": "Bagwatch",
-  "render_readme": true
+  "render_readme": true,
+  "homeassistant": "2024.11.0"
 }
-
