@@ -78,8 +78,8 @@
             "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
-            "fx_rate": "Optional. For a foreign-currency trade, the exchange rate you actually got, expressed as base currency per one unit of the trade currency. Pins the open cost basis so it no longer moves with today's rate. Leave empty to keep using the live rate.",
-            "settlement_base_amount": "Optional alternative to the FX rate: the total value of quantity x unit price in your base currency, as settled by your broker. Bagwatch derives the rate from it. Provide either this or the FX rate, not both.",
+            "fx_rate": "Optional, only for trades in a currency other than your base currency. The exchange rate this trade actually settled at, as base currency per 1 unit of the trade currency. Example: base EUR, you bought a US stock and paid 0.92 EUR per 1 USD, so enter 0.92. This fixes the cost basis so it stops drifting with today's rate. Leave empty to keep using the live rate.",
+            "settlement_base_amount": "Optional alternative to the FX rate, for foreign-currency trades. The total your broker charged in your base currency for quantity x unit price (fees excluded). Example: base EUR, you bought 10 shares at 50 USD (= 500 USD) and your broker debited 465 EUR, so enter 465. Bagwatch works out the rate from it. Use this or the FX rate, not both.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
           }
         },
@@ -110,8 +110,8 @@
             "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
-            "fx_rate": "Optional. For a foreign-currency trade, the exchange rate you actually got, expressed as base currency per one unit of the trade currency. Pins the open cost basis so it no longer moves with today's rate. Leave empty to keep using the live rate.",
-            "settlement_base_amount": "Optional alternative to the FX rate: the total value of quantity x unit price in your base currency, as settled by your broker. Bagwatch derives the rate from it. Provide either this or the FX rate, not both.",
+            "fx_rate": "Optional, only for trades in a currency other than your base currency. The exchange rate this trade actually settled at, as base currency per 1 unit of the trade currency. Example: base EUR, you bought a US stock and paid 0.92 EUR per 1 USD, so enter 0.92. This fixes the cost basis so it stops drifting with today's rate. Leave empty to keep using the live rate.",
+            "settlement_base_amount": "Optional alternative to the FX rate, for foreign-currency trades. The total your broker charged in your base currency for quantity x unit price (fees excluded). Example: base EUR, you bought 10 shares at 50 USD (= 500 USD) and your broker debited 465 EUR, so enter 465. Bagwatch works out the rate from it. Use this or the FX rate, not both.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
           }
         },
@@ -142,8 +142,8 @@
             "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
-            "fx_rate": "Optional. For a foreign-currency trade, the exchange rate you actually got, expressed as base currency per one unit of the trade currency. Pins the open cost basis so it no longer moves with today's rate. Leave empty to keep using the live rate.",
-            "settlement_base_amount": "Optional alternative to the FX rate: the total value of quantity x unit price in your base currency, as settled by your broker. Bagwatch derives the rate from it. Provide either this or the FX rate, not both.",
+            "fx_rate": "Optional, only for trades in a currency other than your base currency. The exchange rate this trade actually settled at, as base currency per 1 unit of the trade currency. Example: base EUR, you bought a US stock and paid 0.92 EUR per 1 USD, so enter 0.92. This fixes the cost basis so it stops drifting with today's rate. Leave empty to keep using the live rate.",
+            "settlement_base_amount": "Optional alternative to the FX rate, for foreign-currency trades. The total your broker charged in your base currency for quantity x unit price (fees excluded). Example: base EUR, you bought 10 shares at 50 USD (= 500 USD) and your broker debited 465 EUR, so enter 465. Bagwatch works out the rate from it. Use this or the FX rate, not both.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
           }
         }
