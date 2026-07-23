@@ -64,6 +64,8 @@
             "currency": "Trade currency",
             "trade_date": "Trade date",
             "fees_total": "Fees total",
+            "fx_rate": "FX rate at trade (base per 1 unit)",
+            "settlement_base_amount": "Settlement amount in base currency",
             "provider_symbol": "Provider symbol"
           },
           "data_description": {
@@ -76,6 +78,8 @@
             "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
+            "fx_rate": "Optional. For a foreign-currency trade, the exchange rate you actually got, expressed as base currency per one unit of the trade currency. Pins the open cost basis so it no longer moves with today's rate. Leave empty to keep using the live rate.",
+            "settlement_base_amount": "Optional alternative to the FX rate: the total value of quantity x unit price in your base currency, as settled by your broker. Bagwatch derives the rate from it. Provide either this or the FX rate, not both.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
           }
         },
@@ -92,6 +96,8 @@
             "currency": "Trade currency",
             "trade_date": "Trade date",
             "fees_total": "Fees total",
+            "fx_rate": "FX rate at trade (base per 1 unit)",
+            "settlement_base_amount": "Settlement amount in base currency",
             "provider_symbol": "Provider symbol"
           },
           "data_description": {
@@ -104,6 +110,8 @@
             "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
+            "fx_rate": "Optional. For a foreign-currency trade, the exchange rate you actually got, expressed as base currency per one unit of the trade currency. Pins the open cost basis so it no longer moves with today's rate. Leave empty to keep using the live rate.",
+            "settlement_base_amount": "Optional alternative to the FX rate: the total value of quantity x unit price in your base currency, as settled by your broker. Bagwatch derives the rate from it. Provide either this or the FX rate, not both.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
           }
         },
@@ -120,6 +128,8 @@
             "currency": "Trade currency",
             "trade_date": "Trade date",
             "fees_total": "Fees total",
+            "fx_rate": "FX rate at trade (base per 1 unit)",
+            "settlement_base_amount": "Settlement amount in base currency",
             "provider_symbol": "Provider symbol"
           },
           "data_description": {
@@ -132,6 +142,8 @@
             "currency": "Currency of the executed trade, for example USD or PLN. Use GBX for trades priced in pence.",
             "trade_date": "Execution date used to order the transaction history.",
             "fees_total": "Optional fees for this single trade.",
+            "fx_rate": "Optional. For a foreign-currency trade, the exchange rate you actually got, expressed as base currency per one unit of the trade currency. Pins the open cost basis so it no longer moves with today's rate. Leave empty to keep using the live rate.",
+            "settlement_base_amount": "Optional alternative to the FX rate: the total value of quantity x unit price in your base currency, as settled by your broker. Bagwatch derives the rate from it. Provide either this or the FX rate, not both.",
             "provider_symbol": "Optional exact provider ticker. For CoinGecko you can use cg:bitcoin. For Yahoo Finance you can use prefixes like yf:PKN.WA or yahoo:BTC-USD."
           }
         }

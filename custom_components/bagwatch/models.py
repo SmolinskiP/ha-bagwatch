@@ -245,6 +245,7 @@ class TransactionConfig:
     provider_symbol: str | None = None
     exchange: str | None = None
     country: str | None = None
+    fx_rate: Decimal | None = None
     order_index: int = 0
 
     @property
@@ -280,6 +281,12 @@ class TransactionConfig:
                 f"Transaction '{symbol}' must have fees_total >= 0"
             )
 
+        fx_rate = _optional_decimal(raw.get("fx_rate"), f"{symbol}.fx_rate")
+        if fx_rate is not None and fx_rate <= 0:
+            raise PortfolioValidationError(
+                f"Transaction '{symbol}' must have fx_rate > 0"
+            )
+
         return cls(
             symbol=symbol,
             transaction_type=_normalize_transaction_type(raw.get("transaction_type")),
@@ -297,6 +304,7 @@ class TransactionConfig:
             else None,
             exchange=str(raw["exchange"]).strip() if raw.get("exchange") else None,
             country=str(raw["country"]).strip() if raw.get("country") else None,
+            fx_rate=fx_rate,
             order_index=int(raw.get("_order_index", 0)),
         )
 
@@ -673,11 +681,18 @@ def build_portfolio_snapshot_from_transactions(
         is_fx_estimate = False
 
         for transaction in bundle.transactions:
-            tx_rate = _get_fx_rate(transaction.currency, base_currency, fx_rates)
+            # A manually supplied fx_rate pins the historical settlement rate for
+            # this trade, so the cost basis stays fixed instead of drifting with the
+            # live rate. It only applies to foreign-currency trades; a stray rate on
+            # a base-currency trade is ignored.
+            if transaction.fx_rate is not None and transaction.currency != base_currency:
+                tx_rate = transaction.fx_rate
+            else:
+                tx_rate = _get_fx_rate(transaction.currency, base_currency, fx_rates)
             gross_base = transaction.quantity * transaction.unit_price * tx_rate
             fees_base = transaction.fees_total * tx_rate
             total_fees_base += fees_base
-            if transaction.currency != base_currency:
+            if transaction.currency != base_currency and transaction.fx_rate is None:
                 is_fx_estimate = True
 
             if transaction.transaction_type == TRANSACTION_TYPE_BUY:

@@ -179,6 +179,82 @@ def test_build_portfolio_snapshot_from_transactions_converts_fx() -> None:
     assert snapshot.unrealized_gain_base == Decimal("200")
 
 
+def test_pinned_fx_rate_fixes_cost_basis_and_clears_estimate_flag() -> None:
+    """A manual fx_rate pins the cost basis and marks the position as not estimated."""
+    transactions = parse_transactions_data(
+        [
+            {
+                "symbol": "KO.US",
+                "asset_type": "stock",
+                "transaction_type": "buy",
+                "quantity": "10",
+                "unit_price": "50",
+                "currency": "USD",
+                "trade_date": "2026-01-10",
+                "fees_total": "20",
+                "fx_rate": "3.5",
+                "_order_index": 0,
+            }
+        ]
+    )
+
+    bundles = group_transactions(transactions)
+    quotes = {"KO.US": MarketQuote(symbol="KO", price=Decimal("55"), currency="USD")}
+    # Live rate (4) differs from the pinned trade rate (3.5).
+    fx_rates = {("USD", "PLN"): Decimal("4"), ("PLN", "PLN"): Decimal("1")}
+
+    snapshot = build_portfolio_snapshot_from_transactions(
+        name="Pinned FX",
+        base_currency="PLN",
+        bundles=bundles,
+        quotes=quotes,
+        fx_rates=fx_rates,
+    )
+
+    position = snapshot.positions[0]
+    # Cost basis uses the pinned 3.5 rate: 10 * 50 * 3.5 + 20 * 3.5 = 1820.
+    assert position.cost_basis_base == Decimal("1820")
+    assert position.total_fees_base == Decimal("70")
+    # Market value still uses the live 4 rate: 10 * 55 * 4 = 2200.
+    assert position.market_value_base == Decimal("2200")
+    assert position.is_fx_estimate is False
+
+
+def test_pinned_fx_rate_ignored_when_currency_matches_base() -> None:
+    """A stray fx_rate on a base-currency trade must not scale the cost basis."""
+    transactions = parse_transactions_data(
+        [
+            {
+                "symbol": "PKN.PL",
+                "asset_type": "stock",
+                "transaction_type": "buy",
+                "quantity": "10",
+                "unit_price": "50",
+                "currency": "PLN",
+                "trade_date": "2026-01-10",
+                "fx_rate": "3.5",
+                "_order_index": 0,
+            }
+        ]
+    )
+
+    bundles = group_transactions(transactions)
+    quotes = {"PKN.PL": MarketQuote(symbol="PKN", price=Decimal("55"), currency="PLN")}
+    fx_rates = {("PLN", "PLN"): Decimal("1")}
+
+    snapshot = build_portfolio_snapshot_from_transactions(
+        name="Same Currency",
+        base_currency="PLN",
+        bundles=bundles,
+        quotes=quotes,
+        fx_rates=fx_rates,
+    )
+
+    position = snapshot.positions[0]
+    assert position.cost_basis_base == Decimal("500")
+    assert position.is_fx_estimate is False
+
+
 def test_major_currency_resolves_pence_codes() -> None:
     """Pence codes should map to pounds with a 100x scale."""
     assert major_currency("GBp") == ("GBP", Decimal("100"))

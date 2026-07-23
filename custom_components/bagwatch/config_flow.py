@@ -36,12 +36,14 @@ from .const import (
     CONF_CRYPTO_PRICE_PROVIDER,
     CONF_CURRENCY,
     CONF_FEES_TOTAL,
+    CONF_FX_RATE,
     CONF_NAME,
     CONF_PORTFOLIO_NAME,
     CONF_PROVIDER,
     CONF_PROVIDER_SYMBOL,
     CONF_QUANTITY,
     CONF_SCAN_INTERVAL,
+    CONF_SETTLEMENT_BASE_AMOUNT,
     CONF_SYMBOL,
     CONF_TRADE_DATE,
     CONF_TRANSACTION_TYPE,
@@ -187,6 +189,14 @@ def _transaction_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                 default=defaults.get(CONF_FEES_TOTAL, ""),
             ): text_selector,
             vol.Optional(
+                CONF_FX_RATE,
+                default=defaults.get(CONF_FX_RATE, ""),
+            ): text_selector,
+            vol.Optional(
+                CONF_SETTLEMENT_BASE_AMOUNT,
+                default=defaults.get(CONF_SETTLEMENT_BASE_AMOUNT, ""),
+            ): text_selector,
+            vol.Optional(
                 CONF_PROVIDER_SYMBOL,
                 default=defaults.get(CONF_PROVIDER_SYMBOL, ""),
             ): str,
@@ -260,8 +270,73 @@ def _normalize_basic_input(user_input: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _normalize_transaction_input(user_input: dict[str, Any]) -> dict[str, Any]:
+def _resolve_transaction_fx_rate(
+    user_input: dict[str, Any],
+    *,
+    currency: str,
+    base_currency: str,
+    quantity: str,
+    unit_price: str,
+) -> str | None:
+    """Resolve an optional pinned FX rate for a foreign-currency trade.
+
+    The user may pin the historical settlement rate either directly (a rate) or
+    indirectly (the total base-currency amount of the consideration). Both are
+    normalized to the canonical "base currency per one unit of the trade
+    currency" rate, matching how the cost-basis math applies it. Returns None
+    when the trade needs no pinned rate.
+    """
+    raw_rate = _clean_optional_number(user_input.get(CONF_FX_RATE))
+    raw_amount = _clean_optional_number(user_input.get(CONF_SETTLEMENT_BASE_AMOUNT))
+
+    if raw_rate is None and raw_amount is None:
+        return None
+
+    if raw_rate is not None and raw_amount is not None:
+        raise PortfolioValidationError(
+            "Provide either an FX rate or a settlement amount, not both"
+        )
+
+    if currency == base_currency.strip().upper():
+        raise PortfolioValidationError(
+            "An FX rate only applies when the trade currency differs from the base currency"
+        )
+
+    if raw_rate is not None:
+        rate = Decimal(raw_rate)
+        if rate <= 0:
+            raise PortfolioValidationError("FX rate must be greater than zero")
+        return format(rate, "f")
+
+    # Derive the rate from the base-currency amount of the consideration
+    # (quantity x unit_price). Fees convert at this same implied rate.
+    gross = Decimal(quantity) * Decimal(unit_price)
+    if gross <= 0:
+        raise PortfolioValidationError(
+            "Cannot derive an FX rate from the settlement amount "
+            "when quantity x price is zero"
+        )
+    amount = Decimal(raw_amount)
+    if amount <= 0:
+        raise PortfolioValidationError("Settlement amount must be greater than zero")
+    return format(amount / gross, "f")
+
+
+def _normalize_transaction_input(
+    user_input: dict[str, Any], base_currency: str
+) -> dict[str, Any]:
     """Normalize and validate a single transaction."""
+    currency = str(user_input.get(CONF_CURRENCY, "")).strip().upper()
+    quantity = _clean_required_number(user_input.get(CONF_QUANTITY), CONF_QUANTITY)
+    unit_price = _clean_required_number(user_input.get(CONF_UNIT_PRICE), CONF_UNIT_PRICE)
+    fx_rate = _resolve_transaction_fx_rate(
+        user_input,
+        currency=currency,
+        base_currency=base_currency,
+        quantity=quantity,
+        unit_price=unit_price,
+    )
+
     transaction = {
         CONF_SYMBOL: str(user_input.get(CONF_SYMBOL, "")).strip(),
         CONF_NAME: _clean_optional_text(user_input.get(CONF_NAME)),
@@ -269,11 +344,12 @@ def _normalize_transaction_input(user_input: dict[str, Any]) -> dict[str, Any]:
         CONF_TRANSACTION_TYPE: str(
             user_input.get(CONF_TRANSACTION_TYPE, DEFAULT_TRANSACTION_TYPE)
         ).strip(),
-        CONF_QUANTITY: _clean_required_number(user_input.get(CONF_QUANTITY), CONF_QUANTITY),
-        CONF_UNIT_PRICE: _clean_required_number(user_input.get(CONF_UNIT_PRICE), CONF_UNIT_PRICE),
-        CONF_CURRENCY: str(user_input.get(CONF_CURRENCY, "")).strip().upper(),
+        CONF_QUANTITY: quantity,
+        CONF_UNIT_PRICE: unit_price,
+        CONF_CURRENCY: currency,
         CONF_TRADE_DATE: str(user_input.get(CONF_TRADE_DATE, "")).strip(),
         CONF_FEES_TOTAL: _clean_optional_number(user_input.get(CONF_FEES_TOTAL)),
+        CONF_FX_RATE: fx_rate,
         CONF_PROVIDER_SYMBOL: _clean_optional_text(user_input.get(CONF_PROVIDER_SYMBOL)),
     }
 
@@ -403,7 +479,8 @@ class BagwatchTransactionSubentryFlow(ConfigSubentryFlow):
 
         if user_input is not None:
             try:
-                transaction = _normalize_transaction_input(user_input)
+                base_currency = self._base_currency()
+                transaction = _normalize_transaction_input(user_input, base_currency)
                 self._validate_transaction_ledger(transaction, step_id)
             except PortfolioValidationError as err:
                 if "legacy positions" in str(err).lower():
@@ -435,6 +512,16 @@ class BagwatchTransactionSubentryFlow(ConfigSubentryFlow):
         if step_id != "reconfigure":
             return {}
         return dict(self._get_reconfigure_subentry().data)
+
+    def _base_currency(self) -> str:
+        """Return the parent portfolio's base currency."""
+        entry = self._get_entry()
+        return str(
+            entry.options.get(
+                CONF_BASE_CURRENCY,
+                entry.data.get(CONF_BASE_CURRENCY, DEFAULT_BASE_CURRENCY),
+            )
+        ).strip().upper()
 
     def _validate_transaction_ledger(
         self,

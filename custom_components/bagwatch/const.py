@@ -33,6 +33,8 @@ CONF_TRANSACTION_TYPE = "transaction_type"
 CONF_TRADE_DATE = "trade_date"
 CONF_UNIT_PRICE = "unit_price"
 CONF_CURRENCY = "currency"
+CONF_FX_RATE = "fx_rate"
+CONF_SETTLEMENT_BASE_AMOUNT = "settlement_base_amount"
 
 DEFAULT_PORTFOLIO_NAME = "Portfolio"
 DEFAULT_PROVIDER = "yahoo_finance"
