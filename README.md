@@ -19,6 +19,7 @@ If you already live inside Home Assistant, Bagwatch lets your portfolio live the
 - **Delete Position action** - Remove a tracked asset cleanly from the device view
 - **Base currency support** - Keep portfolio stats in the currency you actually want to see
 - **Multi-provider setup** - Use Yahoo Finance or Twelve Data as the primary market data provider
+- **Pre- and post-market Yahoo quotes** - When Yahoo Finance is the provider, stock prices keep updating in extended hours, not only during the cash session
 - **Optional CoinGecko crypto routing** - Keep crypto on the primary provider or use CoinGecko first with fallback to the selected primary provider
 - **Dashboard-ready sensors** - Built to work nicely with cards, charts, statistics, and automations
 - **Home Assistant-native setup** - Config flow, options flow, devices, entities, and HACS-friendly structure
@@ -236,6 +237,7 @@ This is useful when you want to confirm symbol formats, API keys, or provider re
 - Bagwatch is focused on practical portfolio tracking inside Home Assistant.
 - A tracked asset can be removed using the `Delete Position` action on the asset device.
 - Yahoo Finance support is experimental and unofficial, so it may break if Yahoo changes its endpoints.
+- When Yahoo Finance is the primary provider, stock quotes use pre-market and after-hours prices whenever Yahoo reports the session as anything other than closed. Daily change is measured against the previous regular close.
 - The current accounting model is intentionally simple and useful: transaction-based, without turning the integration into accounting software.
 
 ## Star History
