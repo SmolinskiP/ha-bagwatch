@@ -62,6 +62,7 @@ Each tracked asset also gets its own entities, including:
 - unrealized gain / loss
 - realized gain / loss
 - transactions count
+- market state (Yahoo Finance: pre-market, regular, after-hours, closed)
 - delete position action
 
 This makes it easy to build anything from a simple summary card to a full-screen finance dashboard.

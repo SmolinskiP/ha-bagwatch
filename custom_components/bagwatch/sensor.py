@@ -24,7 +24,6 @@ from .const import (
     ATTR_IS_FX_ESTIMATE,
     ATTR_LAST_TRADE_DATE,
     ATTR_MARKET_CAP,
-    ATTR_MARKET_STATE,
     ATTR_NATIVE_PRICE,
     ATTR_POSITION_COUNT,
     ATTR_PREVIOUS_CLOSE,
@@ -33,6 +32,7 @@ from .const import (
     ATTR_TRANSACTION_COUNT,
     ATTR_VOLUME,
     DOMAIN,
+    MARKET_STATE_OPTIONS,
 )
 from .coordinator import BagwatchCoordinator
 from .models import PositionSnapshot
@@ -227,6 +227,12 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
         icon="mdi:percent",
         state_class=SensorStateClass.MEASUREMENT,
         unit=PERCENTAGE,
+    ),
+    PositionMetric(
+        key="market_state",
+        name="Market State",
+        icon="mdi:clock-outline",
+        device_class=SensorDeviceClass.ENUM,
     ),
 )
 
@@ -438,7 +444,14 @@ class PositionSensor(PortfolioBaseEntity):
         return self._metric.state_class
 
     @property
-    def native_value(self) -> float | int | None:
+    def options(self) -> list[str] | None:
+        """Return ENUM options for the market state sensor."""
+        if self._metric.key == "market_state":
+            return list(MARKET_STATE_OPTIONS)
+        return None
+
+    @property
+    def native_value(self) -> float | int | str | None:
         """Return the current sensor state."""
         position = self._position
         if position is None:
@@ -488,6 +501,8 @@ class PositionSensor(PortfolioBaseEntity):
             return self._round(position.quote.market_cap * position.price_to_base_rate, 2)
         if self._metric.key == "dividend_yield":
             return self._round(position.quote.dividend_yield, 2)
+        if self._metric.key == "market_state":
+            return position.quote.market_state
         return None
 
     @property
@@ -505,7 +520,6 @@ class PositionSensor(PortfolioBaseEntity):
             ATTR_PRICE_TO_BASE_RATE: self._round(position.price_to_base_rate, 8),
             ATTR_IS_FX_ESTIMATE: position.is_fx_estimate,
             ATTR_AS_OF: position.quote.as_of,
-            ATTR_MARKET_STATE: position.quote.market_state,
             ATTR_PREVIOUS_CLOSE: self._round(position.quote.previous_close, 6),
             ATTR_VOLUME: position.quote.volume,
             ATTR_MARKET_CAP: self._round(position.quote.market_cap, 2),
