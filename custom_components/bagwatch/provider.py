@@ -22,6 +22,26 @@ except ImportError:  # pragma: no cover - runtime dependency in Home Assistant
 _LOGGER = logging.getLogger(__name__)
 
 
+def _finite_decimal(value: Any) -> Decimal | None:
+    """Parse a provider-supplied value into a finite Decimal, or None.
+
+    Providers occasionally hand back NaN or +/-Infinity instead of omitting a
+    field - yfinance's `fast_info`, for example, falls back to NaN for values
+    it can't resolve rather than leaving the key out. `Decimal(str(...))`
+    happily parses those into a non-finite Decimal, which then silently
+    poisons every downstream calculation it touches (price * rate, portfolio
+    sums) and ends up as a non-finite Home Assistant sensor state, which
+    corrupts state/trace JSON. Treat non-finite results the same as "no data".
+    """
+    if value in (None, ""):
+        return None
+    try:
+        decimal_value = Decimal(str(value))
+    except (InvalidOperation, TypeError):
+        return None
+    return decimal_value if decimal_value.is_finite() else None
+
+
 class MarketDataError(RuntimeError):
     """Raised when a market data provider call fails."""
 
@@ -57,12 +77,11 @@ class TwelveDataClient:
         if raw_price is None:
             raise MarketDataError(f"No price returned for symbol '{query.symbol}'")
 
-        try:
-            price = Decimal(str(raw_price))
-        except (InvalidOperation, TypeError) as err:
+        price = _finite_decimal(raw_price)
+        if price is None:
             raise MarketDataError(
                 f"Invalid price returned for symbol '{query.symbol}': {raw_price!r}"
-            ) from err
+            )
 
         currency, minor_unit_scale = major_currency(
             str(payload.get("currency") or "USD")
@@ -112,12 +131,12 @@ class TwelveDataClient:
                 f"No FX rate returned for pair '{source_currency}/{target_currency}'"
             )
 
-        try:
-            return Decimal(str(raw_rate))
-        except (InvalidOperation, TypeError) as err:
+        rate = _finite_decimal(raw_rate)
+        if rate is None:
             raise MarketDataError(
                 f"Invalid FX rate returned for pair '{source_currency}/{target_currency}'"
-            ) from err
+            )
+        return rate
 
     async def _async_request(
         self,
@@ -171,12 +190,7 @@ class TwelveDataClient:
 
     def _optional_decimal(self, value: Any) -> Decimal | None:
         """Convert an optional numeric provider field into Decimal."""
-        if value in (None, ""):
-            return None
-        try:
-            return Decimal(str(value))
-        except (InvalidOperation, TypeError):
-            return None
+        return _finite_decimal(value)
 
     def _optional_int(self, value: Any) -> int | None:
         """Convert an optional numeric provider field into int."""
@@ -184,7 +198,7 @@ class TwelveDataClient:
             return None
         try:
             return int(float(value))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return None
 
     def _optional_percentage(self, value: Any) -> Decimal | None:
@@ -256,9 +270,8 @@ class CoinGeckoClient:
                 unresolved.append(asset_by_key[asset_key])
                 continue
 
-            try:
-                price = Decimal(str(raw_price))
-            except (InvalidOperation, TypeError):
+            price = _finite_decimal(raw_price)
+            if price is None:
                 unresolved.append(asset_by_key[asset_key])
                 continue
 
@@ -411,12 +424,7 @@ class CoinGeckoClient:
 
     def _optional_decimal(self, value: Any) -> Decimal | None:
         """Convert an optional numeric provider field into Decimal."""
-        if value in (None, ""):
-            return None
-        try:
-            return Decimal(str(value))
-        except (InvalidOperation, TypeError):
-            return None
+        return _finite_decimal(value)
 
 
 class YahooFinanceClient:
@@ -547,12 +555,11 @@ class YahooFinanceClient:
         if raw_price is None:
             raise MarketDataError(f"No Yahoo Finance price returned for symbol '{yahoo_symbol}'")
 
-        try:
-            price = Decimal(str(raw_price))
-        except (InvalidOperation, TypeError) as err:
+        price = _finite_decimal(raw_price)
+        if price is None:
             raise MarketDataError(
                 f"Invalid Yahoo Finance price returned for symbol '{yahoo_symbol}': {raw_price!r}"
-            ) from err
+            )
 
         if currency is None:
             currency = "USD"
@@ -699,10 +706,18 @@ class YahooFinanceClient:
             return None
 
     def _first_value(self, *values: Any) -> Any:
-        """Return the first usable value from a list of candidates."""
+        """Return the first usable numeric candidate from a list of values.
+
+        yfinance's `fast_info` returns NaN (not None) for fields it can't
+        resolve, so a NaN candidate here must be skipped rather than accepted,
+        or it would shadow a genuinely usable value later in the list.
+        """
         for value in values:
-            if value not in (None, ""):
-                return value
+            if value in (None, ""):
+                continue
+            if _finite_decimal(value) is None:
+                continue
+            return value
         return None
 
     def _normalize_text(self, value: Any) -> str | None:
@@ -730,12 +745,7 @@ class YahooFinanceClient:
 
     def _to_decimal(self, value: Any) -> Decimal | None:
         """Parse optional numerics into Decimal, ignoring invalid payloads."""
-        if value in (None, ""):
-            return None
-        try:
-            return Decimal(str(value))
-        except (InvalidOperation, TypeError):
-            return None
+        return _finite_decimal(value)
 
     def _to_int(self, value: Any) -> int | None:
         """Parse optional numerics into int, ignoring invalid payloads."""
@@ -743,7 +753,7 @@ class YahooFinanceClient:
             return None
         try:
             return int(float(value))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return None
 
     def _normalize_dividend_yield(

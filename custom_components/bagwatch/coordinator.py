@@ -326,6 +326,12 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
 
         return quotes
 
+    def _previous_quotes(self) -> dict[str, MarketQuote]:
+        """Return the last known-good quote per asset, keyed by asset key."""
+        if self.data is None:
+            return {}
+        return {position.asset.key: position.quote for position in self.data.positions}
+
     async def _async_fetch_primary_quotes(
         self,
         assets: list[AssetConfig],
@@ -348,14 +354,25 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
             raise MarketDataError(f"Unsupported provider configured: {self._provider}")
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
+        previous_quotes = self._previous_quotes()
         quotes: dict[str, MarketQuote] = {}
         for asset, result in zip(assets, results, strict=True):
             if isinstance(result, Exception):
-                _LOGGER.warning(
-                    "Skipping asset '%s' because quote fetch failed: %s",
-                    asset.display_name,
-                    result,
-                )
+                stale_quote = previous_quotes.get(asset.key)
+                if stale_quote is not None:
+                    _LOGGER.warning(
+                        "Quote fetch failed for '%s', reusing the last known price so its "
+                        "sensors and history don't jump to an incorrect value: %s",
+                        asset.display_name,
+                        result,
+                    )
+                    quotes[asset.key] = stale_quote
+                else:
+                    _LOGGER.warning(
+                        "Skipping asset '%s' because quote fetch failed: %s",
+                        asset.display_name,
+                        result,
+                    )
                 continue
             quotes[asset.key] = result
 
