@@ -32,6 +32,8 @@ from .const import (
     ATTR_TRANSACTION_COUNT,
     ATTR_VOLUME,
     DOMAIN,
+    MARKET_STATE_OPTIONS,
+    PROVIDER_YAHOO_FINANCE,
 )
 from .coordinator import BagwatchCoordinator
 from .models import PositionSnapshot
@@ -227,6 +229,12 @@ POSITION_METRICS: tuple[PositionMetric, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         unit=PERCENTAGE,
     ),
+    PositionMetric(
+        key="market_state",
+        name="Market State",
+        icon="mdi:clock-outline",
+        device_class=SensorDeviceClass.ENUM,
+    ),
 )
 
 
@@ -243,6 +251,11 @@ async def async_setup_entry(
 
     for asset in coordinator.get_configured_assets():
         for metric in POSITION_METRICS:
+            # Market sessions only exist for exchange-traded assets priced by Yahoo.
+            if metric.key == "market_state" and (
+                coordinator.provider != PROVIDER_YAHOO_FINANCE or asset.asset_type == "crypto"
+            ):
+                continue
             entities.append(
                 PositionSensor(
                     coordinator,
@@ -437,7 +450,14 @@ class PositionSensor(PortfolioBaseEntity):
         return self._metric.state_class
 
     @property
-    def native_value(self) -> float | int | None:
+    def options(self) -> list[str] | None:
+        """Return ENUM options for the market state sensor."""
+        if self._metric.key == "market_state":
+            return list(MARKET_STATE_OPTIONS)
+        return None
+
+    @property
+    def native_value(self) -> float | int | str | None:
         """Return the current sensor state."""
         position = self._position
         if position is None:
@@ -487,6 +507,11 @@ class PositionSensor(PortfolioBaseEntity):
             return self._round(position.quote.market_cap * position.price_to_base_rate, 2)
         if self._metric.key == "dividend_yield":
             return self._round(position.quote.dividend_yield, 2)
+        if self._metric.key == "market_state":
+            # ENUM sensors reject states outside their options list.
+            if position.quote.market_state in MARKET_STATE_OPTIONS:
+                return position.quote.market_state
+            return None
         return None
 
     @property

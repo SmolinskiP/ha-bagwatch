@@ -413,6 +413,7 @@ class MarketQuote:
     volume: int | None = None
     market_cap: Decimal | None = None
     dividend_yield: Decimal | None = None
+    market_state: str | None = None
 
 
 @dataclass(slots=True, frozen=True)

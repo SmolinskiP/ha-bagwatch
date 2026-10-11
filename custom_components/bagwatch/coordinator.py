@@ -196,6 +196,11 @@ class BagwatchCoordinator(DataUpdateCoordinator[PortfolioSnapshot]):
             transaction_count=0,
         )
 
+    @property
+    def provider(self) -> str:
+        """Return the configured primary market data provider."""
+        return self._provider
+
     def get_configured_assets(self) -> list[AssetConfig]:
         """Return configured assets even when the latest snapshot could not price them."""
         try:

@@ -6,8 +6,17 @@ import argparse
 import json
 from datetime import UTC
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
+import sys
 
 from _env import get_env
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+SESSION_DIR = ROOT_DIR / "custom_components" / "bagwatch"
+if str(SESSION_DIR) not in sys.path:
+    sys.path.insert(0, str(SESSION_DIR))
+
+from yahoo_session import select_yahoo_session_quote
 
 try:
     import yfinance as yf
@@ -51,8 +60,15 @@ def get_quote(symbol: str) -> dict:
                 }
             )
 
+    session_price, session_as_of, market_state = select_yahoo_session_quote(info, fast_info)
+
     return {
         "symbol": symbol,
+        "selected_session": {
+            "marketState": market_state,
+            "price": normalize_number(session_price),
+            "as_of": session_as_of,
+        },
         "fast_info": fast_info,
         "info": {
             "currency": info.get("currency"),
@@ -62,6 +78,12 @@ def get_quote(symbol: str) -> dict:
             "regularMarketPrice": normalize_number(info.get("regularMarketPrice")),
             "currentPrice": normalize_number(info.get("currentPrice")),
             "previousClose": normalize_number(info.get("previousClose")),
+            "marketState": info.get("marketState"),
+            "preMarketPrice": normalize_number(info.get("preMarketPrice")),
+            "preMarketTime": info.get("preMarketTime"),
+            "postMarketPrice": normalize_number(info.get("postMarketPrice")),
+            "postMarketTime": info.get("postMarketTime"),
+            "regularMarketTime": info.get("regularMarketTime"),
         },
         "history": history_rows,
     }

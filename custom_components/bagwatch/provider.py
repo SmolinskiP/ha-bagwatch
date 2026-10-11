@@ -13,6 +13,7 @@ from typing import Any
 from aiohttp import ClientError, ClientSession
 
 from .models import AssetConfig, MarketQuote, ProviderQuery, major_currency
+from .yahoo_session import select_yahoo_session_quote, unix_timestamp_to_iso
 
 try:
     import yfinance as yf
@@ -516,41 +517,58 @@ class YahooFinanceClient:
         asset_type: str | None = None
         as_of: str | None = None
 
-        fast_info = self._safe_mapping(getattr(ticker, "fast_info", None))
-        if fast_info:
-            raw_price = self._first_value(
-                fast_info.get("lastPrice"),
-                fast_info.get("regularMarketPrice"),
-                fast_info.get("previousClose"),
-            )
-            currency = self._normalize_text(fast_info.get("currency"))
-            exchange = self._normalize_text(fast_info.get("exchange"))
+        fast_info = self._safe_mapping(getattr(ticker, "fast_info", None)) or {}
+        info = self._safe_mapping(getattr(ticker, "info", None)) or {}
 
-        info = self._safe_mapping(getattr(ticker, "info", None))
-        if info:
-            raw_price = self._first_value(
-                raw_price,
-                info.get("regularMarketPrice"),
-                info.get("currentPrice"),
-                info.get("previousClose"),
-                info.get("navPrice"),
+        session_price, session_as_of, market_state = select_yahoo_session_quote(
+            info, fast_info
+        )
+        if _finite_decimal(session_price) is None:
+            session_price = session_as_of = None
+        as_of = session_as_of
+        if session_price is not None:
+            _LOGGER.debug(
+                "Yahoo Finance '%s' using %s session price %s",
+                yahoo_symbol,
+                market_state,
+                session_price,
             )
+
+        currency = self._normalize_text(fast_info.get("currency"))
+        exchange = self._normalize_text(fast_info.get("exchange"))
+        raw_price = self._first_value(
+            session_price,
+            fast_info.get("lastPrice"),
+            fast_info.get("regularMarketPrice"),
+            fast_info.get("previousClose"),
+            info.get("regularMarketPrice"),
+            info.get("currentPrice"),
+            info.get("previousClose"),
+            info.get("navPrice"),
+        )
+        if info:
             currency = currency or self._normalize_text(info.get("currency"))
             exchange = exchange or self._normalize_text(
                 info.get("fullExchangeName") or info.get("exchange")
             )
             asset_type = self._normalize_text(info.get("quoteType"))
 
+        if as_of is None:
+            as_of = unix_timestamp_to_iso(
+                info.get("regularMarketTime") or fast_info.get("regularMarketTime")
+            )
+
         history = ticker.history(period="5d", interval="1d", auto_adjust=False, actions=False)
         if hasattr(history, "empty") and not history.empty:
             latest_row = history.iloc[-1]
             raw_price = self._first_value(raw_price, latest_row.get("Close"))
-            latest_index = history.index[-1]
-            if hasattr(latest_index, "to_pydatetime"):
-                latest_dt = latest_index.to_pydatetime()
-                if latest_dt.tzinfo is None:
-                    latest_dt = latest_dt.replace(tzinfo=UTC)
-                as_of = latest_dt.isoformat()
+            if as_of is None:
+                latest_index = history.index[-1]
+                if hasattr(latest_index, "to_pydatetime"):
+                    latest_dt = latest_index.to_pydatetime()
+                    if latest_dt.tzinfo is None:
+                        latest_dt = latest_dt.replace(tzinfo=UTC)
+                    as_of = latest_dt.isoformat()
 
         if raw_price is None:
             raise MarketDataError(f"No Yahoo Finance price returned for symbol '{yahoo_symbol}'")
@@ -605,6 +623,7 @@ class YahooFinanceClient:
             volume=volume,
             market_cap=market_cap,
             dividend_yield=dividend_yield,
+            market_state=market_state,
         )
 
     def _sync_get_exchange_rate(

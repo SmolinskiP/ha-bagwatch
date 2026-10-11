@@ -76,3 +76,14 @@ ATTR_NATIVE_PRICE = "native_price"
 ATTR_VOLUME = "volume"
 ATTR_MARKET_CAP = "market_cap"
 ATTR_DIVIDEND_YIELD = "dividend_yield"
+
+# Yahoo quote.marketState values used by the per-position Market State sensor.
+MARKET_STATE_OPTIONS = (
+    "PREPRE",
+    "PRE",
+    "REGULAR",
+    "POST",
+    "POSTPOST",
+    "CLOSED",
+    "HOLIDAY",
+)
