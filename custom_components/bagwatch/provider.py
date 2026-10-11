@@ -523,7 +523,8 @@ class YahooFinanceClient:
         session_price, session_as_of, market_state = select_yahoo_session_quote(
             info, fast_info
         )
-        raw_price = session_price
+        if _finite_decimal(session_price) is None:
+            session_price = session_as_of = None
         as_of = session_as_of
         if session_price is not None:
             _LOGGER.debug(
@@ -535,26 +536,22 @@ class YahooFinanceClient:
 
         currency = self._normalize_text(fast_info.get("currency"))
         exchange = self._normalize_text(fast_info.get("exchange"))
+        raw_price = self._first_value(
+            session_price,
+            fast_info.get("lastPrice"),
+            fast_info.get("regularMarketPrice"),
+            fast_info.get("previousClose"),
+            info.get("regularMarketPrice"),
+            info.get("currentPrice"),
+            info.get("previousClose"),
+            info.get("navPrice"),
+        )
         if info:
-            raw_price = self._first_value(
-                raw_price,
-                info.get("regularMarketPrice"),
-                info.get("currentPrice"),
-                info.get("previousClose"),
-                info.get("navPrice"),
-            )
             currency = currency or self._normalize_text(info.get("currency"))
             exchange = exchange or self._normalize_text(
                 info.get("fullExchangeName") or info.get("exchange")
             )
             asset_type = self._normalize_text(info.get("quoteType"))
-
-        if raw_price is None:
-            raw_price = self._first_value(
-                fast_info.get("lastPrice"),
-                fast_info.get("regularMarketPrice"),
-                fast_info.get("previousClose"),
-            )
 
         if as_of is None:
             as_of = unix_timestamp_to_iso(

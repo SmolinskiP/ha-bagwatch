@@ -33,6 +33,7 @@ from .const import (
     ATTR_VOLUME,
     DOMAIN,
     MARKET_STATE_OPTIONS,
+    PROVIDER_YAHOO_FINANCE,
 )
 from .coordinator import BagwatchCoordinator
 from .models import PositionSnapshot
@@ -250,6 +251,11 @@ async def async_setup_entry(
 
     for asset in coordinator.get_configured_assets():
         for metric in POSITION_METRICS:
+            # Market sessions only exist for exchange-traded assets priced by Yahoo.
+            if metric.key == "market_state" and (
+                coordinator.provider != PROVIDER_YAHOO_FINANCE or asset.asset_type == "crypto"
+            ):
+                continue
             entities.append(
                 PositionSensor(
                     coordinator,
@@ -502,7 +508,10 @@ class PositionSensor(PortfolioBaseEntity):
         if self._metric.key == "dividend_yield":
             return self._round(position.quote.dividend_yield, 2)
         if self._metric.key == "market_state":
-            return position.quote.market_state
+            # ENUM sensors reject states outside their options list.
+            if position.quote.market_state in MARKET_STATE_OPTIONS:
+                return position.quote.market_state
+            return None
         return None
 
     @property
