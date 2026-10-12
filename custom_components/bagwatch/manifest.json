@@ -1,13 +1,19 @@
 {
   "domain": "bagwatch",
   "name": "Bagwatch",
-  "codeowners": [],
+  "codeowners": [
+    "@SmolinskiP"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/SmolinskiP/ha-bagwatch",
-  "issue_tracker": "https://github.com/SmolinskiP/ha-bagwatch/issues",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "loggers": ["custom_components.bagwatch"],
-  "requirements": ["yfinance==1.2.0"],
+  "issue_tracker": "https://github.com/SmolinskiP/ha-bagwatch/issues",
+  "loggers": [
+    "custom_components.bagwatch"
+  ],
+  "requirements": [
+    "yfinance==1.2.0"
+  ],
   "version": "0.6.4"
 }
